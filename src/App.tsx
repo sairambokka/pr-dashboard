@@ -291,11 +291,9 @@ export default function App() {
                 </span>
               </div>
               <div className="filter-spacers">
-                {["Author", "Labels", "Projects", "Milestones", "Assignees", "Sort"].map((l) => (
-                  <span key={l} className="filter-stub">
-                    {l} <Caret />
-                  </span>
-                ))}
+                <span className="filter-stub">
+                  Newest <Caret />
+                </span>
               </div>
             </div>
 
