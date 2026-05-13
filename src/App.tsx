@@ -16,41 +16,95 @@ function relativeTime(iso: string): string {
   const diffMs = Date.now() - new Date(iso).getTime();
   const m = Math.floor(diffMs / 60000);
   if (m < 1) return "just now";
-  if (m < 60) return `${m}m`;
+  if (m < 60) return `${m} minutes ago`;
   const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h`;
+  if (h < 24) return h === 1 ? "1 hour ago" : `${h} hours ago`;
   const d = Math.floor(h / 24);
-  return `${d}d`;
+  if (d < 7) return d === 1 ? "1 day ago" : `${d} days ago`;
+  if (d < 14) return "last week";
+  if (d < 30) return `${Math.floor(d / 7)} weeks ago`;
+  return `${Math.floor(d / 30)} months ago`;
 }
 
-function reviewLabel(d: PRSummary["reviewDecision"]): {
-  text: string;
-  className: string;
-} {
+function PrIcon({ state }: { state: "open" | "draft" | "merged" }) {
+  const color = state === "draft" ? "#7d8590" : state === "merged" ? "#a371f7" : "#3fb950";
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill={color}
+      aria-hidden="true"
+      style={{ flexShrink: 0 }}
+    >
+      <path d="M1.5 3.25a2.25 2.25 0 1 1 3 2.122v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.25 2.25 0 0 1 1.5 3.25Zm5.677-.177L9.573.677A.25.25 0 0 1 10 .854V2.5h1A2.5 2.5 0 0 1 13.5 5v5.628a2.251 2.251 0 1 1-1.5 0V5a1 1 0 0 0-1-1h-1v1.646a.25.25 0 0 1-.427.177L7.177 3.427a.25.25 0 0 1 0-.354ZM3.75 2.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm0 9.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm8.25.75a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Z" />
+    </svg>
+  );
+}
+
+function CommentIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+      <path d="M1 2.75C1 1.784 1.784 1 2.75 1h10.5c.966 0 1.75.784 1.75 1.75v7.5A1.75 1.75 0 0 1 13.25 12H9.06l-2.573 2.573A1.458 1.458 0 0 1 4 13.543V12H2.75A1.75 1.75 0 0 1 1 10.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h2a.75.75 0 0 1 .75.75v2.189l2.72-2.719a.749.749 0 0 1 .53-.22h4.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z" />
+    </svg>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="#3fb950" aria-hidden="true">
+      <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z" />
+    </svg>
+  );
+}
+
+function XIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="#f85149" aria-hidden="true">
+      <path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.749.749 0 0 1 1.275.326.749.749 0 0 1-.215.734L9.06 8l3.22 3.22a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215L8 9.06l-3.22 3.22a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z" />
+    </svg>
+  );
+}
+
+function DotIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="#d29922" aria-hidden="true">
+      <circle cx="8" cy="8" r="4" />
+    </svg>
+  );
+}
+
+function reviewBadge(d: PRSummary["reviewDecision"]) {
   switch (d) {
     case "APPROVED":
-      return { text: "Approved", className: "pill pill-approved" };
+      return (
+        <span className="badge badge-approved">
+          <CheckIcon /> Approved
+        </span>
+      );
     case "CHANGES_REQUESTED":
-      return { text: "Changes requested", className: "pill pill-changes" };
-    case "REVIEW_REQUIRED":
-      return { text: "Review required", className: "pill pill-pending" };
+      return (
+        <span className="badge badge-changes">
+          <XIcon /> Changes requested
+        </span>
+      );
     default:
-      return { text: "No review", className: "pill pill-muted" };
+      return null;
   }
 }
 
-function ciDot(state: PRSummary["ciState"]): { className: string; label: string } {
+function ciIcon(state: PRSummary["ciState"]) {
   switch (state) {
     case "SUCCESS":
-      return { className: "ci ci-success", label: "CI passing" };
+      return <CheckIcon />;
     case "FAILURE":
     case "ERROR":
-      return { className: "ci ci-fail", label: "CI failing" };
+      return <XIcon />;
     case "PENDING":
     case "EXPECTED":
-      return { className: "ci ci-pending", label: "CI pending" };
+      return <DotIcon />;
     default:
-      return { className: "ci ci-none", label: "No CI" };
+      return null;
   }
 }
 
@@ -99,7 +153,6 @@ export default function App() {
           );
         }
       }
-
       for (const key of Object.keys(next)) {
         if (!fresh.some((p) => String(p.number) === key)) delete next[Number(key)];
       }
@@ -154,120 +207,180 @@ export default function App() {
   };
 
   const handlePrClick = (e: React.MouseEvent<HTMLAnchorElement>, pr: PRSummary) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
     e.preventDefault();
     markRead(pr.number, pr.totalCommentCount);
     window.open(pr.url, "_blank", "noopener,noreferrer");
   };
 
-  const totalUnread = unreadByPr.total;
-
   return (
     <div className="app">
-      <header className="header">
-        <div className="header-left">
-          <h1>PR Dashboard</h1>
-          {totalUnread > 0 && <span className="total-unread">{totalUnread}</span>}
-          {login && <span className="login">@{login}</span>}
-          {configured && (
-            <span className="repo-tag">
-              {settings.owner}/{settings.repo}
+      <header className="topbar">
+        <div className="topbar-inner">
+          <div className="brand">
+            <span className="brand-mark" aria-hidden>
+              <PrIcon state="open" />
             </span>
-          )}
+            <span className="brand-text">PR Dashboard</span>
+            {login && <span className="brand-user">@{login}</span>}
+          </div>
+          <div className="topbar-actions">
+            {lastFetch && (
+              <span className="ts">Updated {relativeTime(new Date(lastFetch).toISOString())}</span>
+            )}
+            <button className="btn btn-ghost" onClick={refresh} disabled={!configured || loading}>
+              {loading ? "Refreshing…" : "Refresh"}
+            </button>
+            <button
+              className="btn btn-ghost"
+              onClick={markAllRead}
+              disabled={!unreadByPr.total}
+            >
+              Mark all read
+            </button>
+            <button className="btn btn-ghost" onClick={() => setShowSettings(!showSettings)}>
+              Settings
+            </button>
+          </div>
         </div>
-        <div className="header-right">
-          {lastFetch && (
-            <span className="muted">
-              Updated {relativeTime(new Date(lastFetch).toISOString())} ago
+        {configured && (
+          <div className="subbar">
+            <span className="repo-crumb">
+              {settings.owner}
+              <span className="slash">/</span>
+              <strong>{settings.repo}</strong>
             </span>
-          )}
-          <button onClick={refresh} disabled={!configured || loading}>
-            {loading ? "Refreshing…" : "Refresh"}
-          </button>
-          <button onClick={markAllRead} disabled={!totalUnread}>
-            Mark all read
-          </button>
-          <button onClick={() => setShowSettings(!showSettings)}>Settings</button>
-        </div>
+          </div>
+        )}
       </header>
 
-      {showSettings && (
-        <SettingsPanel
-          settings={settings}
-          onSave={(s) => {
-            setSettings(s);
-            saveSettings(s);
-            setShowSettings(false);
-          }}
-          onClose={() => setShowSettings(false)}
-        />
-      )}
+      <main className="main">
+        {showSettings && (
+          <SettingsPanel
+            settings={settings}
+            onSave={(s) => {
+              setSettings(s);
+              saveSettings(s);
+              setShowSettings(false);
+            }}
+            onClose={() => setShowSettings(false)}
+          />
+        )}
 
-      {error && <div className="error">{error}</div>}
+        {error && <div className="error">{error}</div>}
 
-      {!configured && !showSettings && (
-        <div className="empty">
-          <p>Configure your GitHub PAT and target repo to start.</p>
-          <button onClick={() => setShowSettings(true)}>Open settings</button>
-        </div>
-      )}
+        {!configured && !showSettings && (
+          <div className="empty">
+            <p>Configure your GitHub PAT and target repo to start.</p>
+            <button className="btn btn-primary" onClick={() => setShowSettings(true)}>
+              Open settings
+            </button>
+          </div>
+        )}
 
-      <ul className="pr-list">
-        {prs.map((pr) => {
-          const r = reviewLabel(pr.reviewDecision);
-          const ci = ciDot(pr.ciState);
-          const unread = unreadByPr.map[pr.number] ?? 0;
-          return (
-            <li
-              key={pr.number}
-              className={`pr-row ${pr.isDraft ? "draft" : ""} ${unread > 0 ? "has-unread" : ""}`}
-            >
-              <a
-                className="pr-link"
-                href={pr.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={(e) => handlePrClick(e, pr)}
-                onAuxClick={(e) => {
-                  if (e.button === 1) markRead(pr.number, pr.totalCommentCount);
-                }}
-              >
-                <span className="pr-bubble-slot">
-                  {unread > 0 ? (
-                    <span className="unread-bubble" title={`${unread} new`}>
-                      {unread > 99 ? "99+" : unread}
-                    </span>
-                  ) : (
-                    <span className={ci.className} title={ci.label} />
-                  )}
+        {configured && (
+          <div className="pr-panel">
+            <div className="pr-panel-header">
+              <div className="filter-tabs">
+                <span className="tab tab-active">
+                  <PrIcon state="open" />
+                  <strong>{prs.length}</strong> Open
                 </span>
-                <span className="pr-num">#{pr.number}</span>
-                <span className="pr-title">{pr.title}</span>
-                {pr.isDraft && <span className="pill pill-muted">Draft</span>}
-                <span className={r.className}>{r.text}</span>
-                <span className="pr-comments">
-                  {pr.totalCommentCount}{" "}
-                  {pr.totalCommentCount === 1 ? "comment" : "comments"}
+                <span className="tab tab-muted">
+                  <CheckIcon /> Closed
                 </span>
-                <span className="muted pr-time">{relativeTime(pr.updatedAt)}</span>
-                <button
-                  className="mark-read-btn"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    markRead(pr.number, pr.totalCommentCount);
-                  }}
-                  disabled={unread === 0}
-                  title="Mark as read"
-                  aria-label="Mark as read"
-                >
-                  ✓
-                </button>
-              </a>
-            </li>
-          );
-        })}
-      </ul>
+              </div>
+              <div className="filter-spacers">
+                {["Author", "Labels", "Projects", "Milestones", "Assignees", "Sort"].map((l) => (
+                  <span key={l} className="filter-stub">
+                    {l} <Caret />
+                  </span>
+                ))}
+              </div>
+            </div>
+
+            <ul className="pr-list">
+              {prs.map((pr) => {
+                const unread = unreadByPr.map[pr.number] ?? 0;
+                const created = relativeTime(pr.updatedAt);
+                return (
+                  <li
+                    key={pr.number}
+                    className={`pr-row ${unread > 0 ? "is-unread" : ""}`}
+                  >
+                    <div className="pr-icon-col">
+                      <PrIcon state={pr.isDraft ? "draft" : "open"} />
+                    </div>
+                    <div className="pr-body">
+                      <div className="pr-title-line">
+                        <a
+                          className="pr-link"
+                          href={pr.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => handlePrClick(e, pr)}
+                        >
+                          {pr.title}
+                        </a>
+                        {pr.isDraft && <span className="label label-muted">Draft</span>}
+                        {reviewBadge(pr.reviewDecision)}
+                      </div>
+                      <div className="pr-meta-line">
+                        <span className="meta">
+                          {settings.owner}/{settings.repo}#{pr.number}
+                        </span>
+                        <span className="meta-sep">·</span>
+                        <span className="meta">opened {created}</span>
+                        {pr.ciState && (
+                          <>
+                            <span className="meta-sep">·</span>
+                            <span className="meta-ci">{ciIcon(pr.ciState)}</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    <div className="pr-right">
+                      {unread > 0 && (
+                        <button
+                          className="unread-bubble"
+                          title={`${unread} new — click to mark read`}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            markRead(pr.number, pr.totalCommentCount);
+                          }}
+                          aria-label={`${unread} new comments, click to mark read`}
+                        >
+                          {unread > 99 ? "99+" : unread}
+                        </button>
+                      )}
+                      {pr.totalCommentCount > 0 && (
+                        <span className="comment-count" title="Total comments">
+                          <CommentIcon />
+                          <span>{pr.totalCommentCount}</span>
+                        </span>
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+
+            {prs.length === 0 && !loading && (
+              <div className="pr-empty">No open PRs authored by you.</div>
+            )}
+          </div>
+        )}
+      </main>
     </div>
+  );
+}
+
+function Caret() {
+  return (
+    <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+      <path d="M4.427 7.427l3.396 3.396a.25.25 0 0 0 .354 0l3.396-3.396A.25.25 0 0 0 11.396 7H4.604a.25.25 0 0 0-.177.427Z" />
+    </svg>
   );
 }
 
@@ -294,8 +407,8 @@ function SettingsPanel({
           autoComplete="off"
         />
         <small>
-          Fine-grained PAT with <code>repo</code> read scope. Stored only in your browser
-          localStorage.
+          Fine-grained PAT with the repo's <code>Pull requests: Read</code> permission.
+          Stored only in your browser localStorage.
         </small>
       </label>
       <label>
@@ -304,7 +417,7 @@ function SettingsPanel({
           type="text"
           value={draft.owner}
           onChange={(e) => setDraft({ ...draft, owner: e.target.value })}
-          placeholder="e.g. corca-ai"
+          placeholder="corca-ai"
         />
       </label>
       <label>
@@ -313,7 +426,7 @@ function SettingsPanel({
           type="text"
           value={draft.repo}
           onChange={(e) => setDraft({ ...draft, repo: e.target.value })}
-          placeholder="e.g. corca-app"
+          placeholder="corca-app"
         />
       </label>
       <label>
@@ -328,8 +441,10 @@ function SettingsPanel({
         />
       </label>
       <div className="settings-actions">
-        <button onClick={onClose}>Cancel</button>
-        <button className="primary" onClick={() => onSave(draft)}>
+        <button className="btn btn-ghost" onClick={onClose}>
+          Cancel
+        </button>
+        <button className="btn btn-primary" onClick={() => onSave(draft)}>
           Save
         </button>
       </div>
