@@ -5,6 +5,7 @@ import {
   loadSettings,
   saveSeen,
   saveSettings,
+  type SeenMap,
   type Settings,
 } from "./lib/storage";
 import { setFaviconBadge } from "./lib/favicon";
@@ -56,13 +57,14 @@ function ciDot(state: PRSummary["ciState"]): { className: string; label: string 
 export default function App() {
   const [settings, setSettings] = useState<Settings>(loadSettings);
   const [prs, setPrs] = useState<PRSummary[]>([]);
+  const [seen, setSeen] = useState<SeenMap>(loadSeen);
   const [login, setLogin] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [lastFetch, setLastFetch] = useState<number | null>(null);
-  const seenRef = useRef(loadSeen());
-  const initialLoadRef = useRef(true);
+  const seenRef = useRef(seen);
+  seenRef.current = seen;
 
   const configured = settings.token && settings.owner && settings.repo;
 
@@ -80,29 +82,30 @@ export default function App() {
       setPrs(fresh);
       setLastFetch(Date.now());
 
-      const seen = seenRef.current;
-      let unread = 0;
-      const nextSeen: Record<number, number> = {};
+      const prior = seenRef.current;
+      const next: SeenMap = { ...prior };
 
       for (const pr of fresh) {
-        const prior = seen[pr.number] ?? pr.totalCommentCount;
-        const delta = pr.totalCommentCount - prior;
-        if (delta > 0 && !initialLoadRef.current) {
+        if (!(pr.number in prior)) {
+          next[pr.number] = pr.totalCommentCount;
+          continue;
+        }
+        const delta = pr.totalCommentCount - prior[pr.number];
+        if (delta > 0) {
           notify(
             `PR #${pr.number}: ${delta} new comment${delta === 1 ? "" : "s"}`,
             pr.title,
             pr.url,
           );
-          unread += delta;
-        } else if (delta > 0) {
-          unread += delta;
         }
-        nextSeen[pr.number] = prior;
       }
-      seenRef.current = nextSeen;
-      saveSeen(nextSeen);
-      setFaviconBadge(unread);
-      initialLoadRef.current = false;
+
+      for (const key of Object.keys(next)) {
+        if (!fresh.some((p) => String(p.number) === key)) delete next[Number(key)];
+      }
+
+      setSeen(next);
+      saveSeen(next);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
     } finally {
@@ -121,29 +124,49 @@ export default function App() {
     void ensureNotifyPermission();
   }, []);
 
-  const markAllRead = () => {
-    const next: Record<number, number> = {};
-    for (const pr of prs) next[pr.number] = pr.totalCommentCount;
-    seenRef.current = next;
-    saveSeen(next);
-    setFaviconBadge(0);
-    setPrs([...prs]);
-  };
-
   const unreadByPr = useMemo(() => {
     const map: Record<number, number> = {};
+    let total = 0;
     for (const pr of prs) {
-      const prior = seenRef.current[pr.number] ?? pr.totalCommentCount;
-      map[pr.number] = Math.max(0, pr.totalCommentCount - prior);
+      const baseline = seen[pr.number] ?? pr.totalCommentCount;
+      const u = Math.max(0, pr.totalCommentCount - baseline);
+      map[pr.number] = u;
+      total += u;
     }
-    return map;
-  }, [prs]);
+    return { map, total };
+  }, [prs, seen]);
+
+  useEffect(() => {
+    setFaviconBadge(unreadByPr.total);
+  }, [unreadByPr.total]);
+
+  const markRead = (prNumber: number, currentCount: number) => {
+    const next = { ...seenRef.current, [prNumber]: currentCount };
+    setSeen(next);
+    saveSeen(next);
+  };
+
+  const markAllRead = () => {
+    const next: SeenMap = {};
+    for (const pr of prs) next[pr.number] = pr.totalCommentCount;
+    setSeen(next);
+    saveSeen(next);
+  };
+
+  const handlePrClick = (e: React.MouseEvent<HTMLAnchorElement>, pr: PRSummary) => {
+    e.preventDefault();
+    markRead(pr.number, pr.totalCommentCount);
+    window.open(pr.url, "_blank", "noopener,noreferrer");
+  };
+
+  const totalUnread = unreadByPr.total;
 
   return (
     <div className="app">
       <header className="header">
         <div className="header-left">
           <h1>PR Dashboard</h1>
+          {totalUnread > 0 && <span className="total-unread">{totalUnread}</span>}
           {login && <span className="login">@{login}</span>}
           {configured && (
             <span className="repo-tag">
@@ -160,7 +183,7 @@ export default function App() {
           <button onClick={refresh} disabled={!configured || loading}>
             {loading ? "Refreshing…" : "Refresh"}
           </button>
-          <button onClick={markAllRead} disabled={!prs.length}>
+          <button onClick={markAllRead} disabled={!totalUnread}>
             Mark all read
           </button>
           <button onClick={() => setShowSettings(!showSettings)}>Settings</button>
@@ -192,25 +215,53 @@ export default function App() {
         {prs.map((pr) => {
           const r = reviewLabel(pr.reviewDecision);
           const ci = ciDot(pr.ciState);
-          const unread = unreadByPr[pr.number] ?? 0;
+          const unread = unreadByPr.map[pr.number] ?? 0;
           return (
-            <li key={pr.number} className={`pr-row ${pr.isDraft ? "draft" : ""}`}>
+            <li
+              key={pr.number}
+              className={`pr-row ${pr.isDraft ? "draft" : ""} ${unread > 0 ? "has-unread" : ""}`}
+            >
               <a
                 className="pr-link"
                 href={pr.url}
                 target="_blank"
                 rel="noopener noreferrer"
+                onClick={(e) => handlePrClick(e, pr)}
+                onAuxClick={(e) => {
+                  if (e.button === 1) markRead(pr.number, pr.totalCommentCount);
+                }}
               >
-                <span className={ci.className} title={ci.label} />
+                <span className="pr-bubble-slot">
+                  {unread > 0 ? (
+                    <span className="unread-bubble" title={`${unread} new`}>
+                      {unread > 99 ? "99+" : unread}
+                    </span>
+                  ) : (
+                    <span className={ci.className} title={ci.label} />
+                  )}
+                </span>
                 <span className="pr-num">#{pr.number}</span>
                 <span className="pr-title">{pr.title}</span>
                 {pr.isDraft && <span className="pill pill-muted">Draft</span>}
                 <span className={r.className}>{r.text}</span>
                 <span className="pr-comments">
-                  {pr.totalCommentCount} {pr.totalCommentCount === 1 ? "comment" : "comments"}
-                  {unread > 0 && <span className="unread">+{unread}</span>}
+                  {pr.totalCommentCount}{" "}
+                  {pr.totalCommentCount === 1 ? "comment" : "comments"}
                 </span>
                 <span className="muted pr-time">{relativeTime(pr.updatedAt)}</span>
+                <button
+                  className="mark-read-btn"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    markRead(pr.number, pr.totalCommentCount);
+                  }}
+                  disabled={unread === 0}
+                  title="Mark as read"
+                  aria-label="Mark as read"
+                >
+                  ✓
+                </button>
               </a>
             </li>
           );

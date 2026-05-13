@@ -189,7 +189,7 @@ button.primary {
 
 .pr-link {
   display: grid;
-  grid-template-columns: auto auto 1fr auto auto auto auto;
+  grid-template-columns: 32px auto 1fr auto auto auto auto auto;
   gap: 10px;
   align-items: center;
   padding: 12px 8px;
@@ -199,6 +199,80 @@ button.primary {
 
 .pr-link:hover {
   background: var(--panel);
+}
+
+.pr-row.has-unread {
+  background: rgba(248, 81, 73, 0.04);
+}
+
+.pr-row.has-unread .pr-title {
+  font-weight: 600;
+  color: #fff;
+}
+
+.pr-bubble-slot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 22px;
+}
+
+.unread-bubble {
+  background: var(--red);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 11px;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 7px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  box-shadow: 0 0 0 2px var(--bg);
+  font-variant-numeric: tabular-nums;
+}
+
+.total-unread {
+  background: var(--red);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 10px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 7px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mark-read-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--muted);
+  font-size: 14px;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border-radius: 50%;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mark-read-btn:hover:not(:disabled) {
+  background: var(--panel);
+  border-color: var(--border);
+  color: var(--green);
+}
+
+.mark-read-btn:disabled {
+  opacity: 0;
+  pointer-events: none;
 }
 
 .pr-num {
@@ -217,16 +291,6 @@ button.primary {
   color: var(--muted);
   font-size: 12px;
   white-space: nowrap;
-}
-
-.unread {
-  background: var(--red);
-  color: #fff;
-  border-radius: 10px;
-  padding: 1px 7px;
-  margin-left: 6px;
-  font-weight: 600;
-  font-size: 11px;
 }
 
 .pr-time {
