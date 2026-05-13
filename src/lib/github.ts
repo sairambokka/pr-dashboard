@@ -15,9 +15,6 @@ query($owner: String!, $name: String!) {
         author { login }
         headRefName
         baseRefName
-        labels(first: 20) {
-          nodes { name color }
-        }
         comments { totalCount }
         reviewThreads(first: 100) { nodes { comments { totalCount } } }
         reviewDecision
@@ -36,11 +33,6 @@ query($owner: String!, $name: String!) {
   }
 }`;
 
-export interface Label {
-  name: string;
-  color: string;
-}
-
 export type ReviewState = "PENDING" | "COMMENTED" | "APPROVED" | "CHANGES_REQUESTED" | "DISMISSED";
 
 export interface PRSummary {
@@ -51,7 +43,6 @@ export interface PRSummary {
   updatedAt: string;
   headRefName: string;
   baseRefName: string;
-  labels: Label[];
   issueCommentCount: number;
   reviewCommentCount: number;
   totalCommentCount: number;
@@ -76,7 +67,6 @@ interface GqlResp {
           author: { login: string } | null;
           headRefName: string;
           baseRefName: string;
-          labels: { nodes: Array<{ name: string; color: string }> };
           comments: { totalCount: number };
           reviewThreads: { nodes: Array<{ comments: { totalCount: number } }> };
           reviewDecision: PRSummary["reviewDecision"];
@@ -165,7 +155,6 @@ export async function fetchMyPRs(
         updatedAt: p.updatedAt,
         headRefName: p.headRefName,
         baseRefName: p.baseRefName,
-        labels: p.labels.nodes,
         issueCommentCount,
         reviewCommentCount,
         totalCommentCount: issueCommentCount + reviewCommentCount,
