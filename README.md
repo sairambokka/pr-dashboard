@@ -1,73 +1,60 @@
-# React + TypeScript + Vite
+# PR Dashboard
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Linear-style view of your open GitHub PRs in one repo. Polls the GitHub API on an
+interval and fires browser notifications when comment counts go up.
 
-Currently, two official plugins are available:
+Pure static app, deployable to GitHub Pages. No backend, no secrets stored anywhere
+but your own browser localStorage.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Features
 
-## React Compiler
+- List of open PRs you authored in a chosen repo
+- Per-PR comment count badge (issue + review comments combined)
+- Unread delta badge — new comments since last refresh
+- Review state pill: Approved / Changes requested / Review required
+- CI status dot (passing / failing / pending)
+- Web Notifications + favicon badge when new comments arrive
+- Configurable poll interval (default 60s)
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Setup
 
-## Expanding the ESLint configuration
+1. Install:
+   ```bash
+   pnpm install
+   pnpm dev
+   ```
+2. Open the app, click **Settings**.
+3. Paste a GitHub Personal Access Token. **Fine-grained PAT** with the target
+   repo's **Pull requests: Read** and **Contents: Read** permissions is enough.
+   - Token never leaves your browser. Stored only in `localStorage`.
+4. Set `owner` and `repo` (e.g. `corca-ai` / `corca-app`).
+5. Save. PRs load.
+6. Allow browser notifications when prompted.
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## Deploy to GitHub Pages
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+1. Push this repo to GitHub.
+2. Settings → Pages → Source: **GitHub Actions**.
+3. The included `.github/workflows/deploy.yml` builds and publishes on every push
+   to `main`. The Vite `base` path auto-adjusts to `/<repo-name>/`.
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+## Sharing with colleagues
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+Each user needs their own PAT (the token is browser-local and personal). Send
+them the deployed URL. v1 limitation; OAuth via a tiny Cloudflare Worker proxy
+would remove the PAT step — not in this version.
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Stack
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+- Vite + React + TypeScript
+- GitHub GraphQL API v4
+- Web Notifications API + Canvas favicon
+- No backend
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## Scripts
+
+```bash
+pnpm dev      # local dev server
+pnpm build    # production bundle to dist/
+pnpm tsc -b   # type check
 ```
