@@ -15,10 +15,15 @@ query($owner: String!, $name: String!) {
         author { login }
         headRefName
         baseRefName
+        labels(first: 20) {
+          nodes { name color }
+        }
         comments { totalCount }
         reviewThreads(first: 100) { nodes { comments { totalCount } } }
         reviewDecision
-        reviews(last: 20) { nodes { state author { login } submittedAt } }
+        reviews(last: 30) {
+          nodes { state author { login } submittedAt }
+        }
         commits(last: 1) {
           nodes {
             commit {
@@ -31,6 +36,13 @@ query($owner: String!, $name: String!) {
   }
 }`;
 
+export interface Label {
+  name: string;
+  color: string;
+}
+
+export type ReviewState = "PENDING" | "COMMENTED" | "APPROVED" | "CHANGES_REQUESTED" | "DISMISSED";
+
 export interface PRSummary {
   number: number;
   title: string;
@@ -39,10 +51,14 @@ export interface PRSummary {
   updatedAt: string;
   headRefName: string;
   baseRefName: string;
+  labels: Label[];
   issueCommentCount: number;
   reviewCommentCount: number;
   totalCommentCount: number;
   reviewDecision: "APPROVED" | "CHANGES_REQUESTED" | "REVIEW_REQUIRED" | null;
+  effectiveReview: "APPROVED" | "CHANGES_REQUESTED" | null;
+  approvers: string[];
+  changeRequesters: string[];
   ciState: "SUCCESS" | "FAILURE" | "PENDING" | "ERROR" | "EXPECTED" | null;
 }
 
@@ -60,9 +76,17 @@ interface GqlResp {
           author: { login: string } | null;
           headRefName: string;
           baseRefName: string;
+          labels: { nodes: Array<{ name: string; color: string }> };
           comments: { totalCount: number };
           reviewThreads: { nodes: Array<{ comments: { totalCount: number } }> };
           reviewDecision: PRSummary["reviewDecision"];
+          reviews: {
+            nodes: Array<{
+              state: ReviewState;
+              author: { login: string } | null;
+              submittedAt: string | null;
+            }>;
+          };
           commits: {
             nodes: Array<{
               commit: { statusCheckRollup: { state: PRSummary["ciState"] } | null };
@@ -107,6 +131,32 @@ export async function fetchMyPRs(
       );
       const issueCommentCount = p.comments.totalCount;
       const ci = p.commits.nodes[0]?.commit.statusCheckRollup?.state ?? null;
+
+      const latestByAuthor = new Map<string, { state: ReviewState; at: string }>();
+      for (const r of p.reviews.nodes) {
+        const author = r.author?.login;
+        if (!author) continue;
+        if (author === login) continue;
+        if (r.state === "COMMENTED" || r.state === "PENDING") continue;
+        const at = r.submittedAt ?? "";
+        const existing = latestByAuthor.get(author);
+        if (!existing || at > existing.at) {
+          latestByAuthor.set(author, { state: r.state, at });
+        }
+      }
+      const approvers: string[] = [];
+      const changeRequesters: string[] = [];
+      for (const [author, { state }] of latestByAuthor) {
+        if (state === "APPROVED") approvers.push(author);
+        else if (state === "CHANGES_REQUESTED") changeRequesters.push(author);
+      }
+      let effective: PRSummary["effectiveReview"] = null;
+      if (p.reviewDecision === "CHANGES_REQUESTED" || changeRequesters.length > 0) {
+        effective = "CHANGES_REQUESTED";
+      } else if (p.reviewDecision === "APPROVED" || approvers.length > 0) {
+        effective = "APPROVED";
+      }
+
       return {
         number: p.number,
         title: p.title,
@@ -115,10 +165,14 @@ export async function fetchMyPRs(
         updatedAt: p.updatedAt,
         headRefName: p.headRefName,
         baseRefName: p.baseRefName,
+        labels: p.labels.nodes,
         issueCommentCount,
         reviewCommentCount,
         totalCommentCount: issueCommentCount + reviewCommentCount,
         reviewDecision: p.reviewDecision,
+        effectiveReview: effective,
+        approvers,
+        changeRequesters,
         ciState: ci,
       };
     });

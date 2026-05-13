@@ -74,23 +74,56 @@ function DotIcon() {
   );
 }
 
-function reviewBadge(d: PRSummary["reviewDecision"]) {
-  switch (d) {
-    case "APPROVED":
-      return (
-        <span className="badge badge-approved">
-          <CheckIcon /> Approved
-        </span>
-      );
-    case "CHANGES_REQUESTED":
-      return (
-        <span className="badge badge-changes">
-          <XIcon /> Changes requested
-        </span>
-      );
-    default:
-      return null;
+function reviewBadge(pr: PRSummary) {
+  const effective = pr.effectiveReview;
+  if (effective === "APPROVED") {
+    const who = pr.approvers.length
+      ? `Approved by ${pr.approvers.map((a) => `@${a}`).join(", ")}`
+      : "Approved";
+    return (
+      <span className="badge badge-approved" title={who}>
+        <CheckIcon /> Approved{pr.approvers.length > 1 ? ` (${pr.approvers.length})` : ""}
+      </span>
+    );
   }
+  if (effective === "CHANGES_REQUESTED") {
+    const who = pr.changeRequesters.length
+      ? `Changes requested by ${pr.changeRequesters.map((a) => `@${a}`).join(", ")}`
+      : "Changes requested";
+    return (
+      <span className="badge badge-changes" title={who}>
+        <XIcon /> Changes requested
+      </span>
+    );
+  }
+  return null;
+}
+
+function hexToRgb(hex: string): [number, number, number] {
+  const h = hex.replace(/^#/, "");
+  const n = parseInt(h.length === 3 ? h.split("").map((c) => c + c).join("") : h, 16);
+  return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
+function labelTextColor(hex: string): string {
+  const [r, g, b] = hexToRgb(hex);
+  const luma = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luma > 0.6 ? "#0d1117" : "#fff";
+}
+
+function GhLabel({ name, color }: { name: string; color: string }) {
+  return (
+    <span
+      className="gh-label"
+      style={{
+        backgroundColor: `#${color}`,
+        color: labelTextColor(color),
+        borderColor: `#${color}33`,
+      }}
+    >
+      {name}
+    </span>
+  );
 }
 
 function ciIcon(state: PRSummary["ciState"]) {
@@ -321,7 +354,10 @@ export default function App() {
                           {pr.title}
                         </a>
                         {pr.isDraft && <span className="label label-muted">Draft</span>}
-                        {reviewBadge(pr.reviewDecision)}
+                        {pr.labels.map((l) => (
+                          <GhLabel key={l.name} name={l.name} color={l.color} />
+                        ))}
+                        {reviewBadge(pr)}
                       </div>
                       <div className="pr-meta-line">
                         <span className="meta">
