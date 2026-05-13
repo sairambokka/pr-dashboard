@@ -1,7 +1,7 @@
 const GQL_URL = "https://api.github.com/graphql";
 
 const QUERY = `
-query($owner: String!, $name: String!, $login: String!) {
+query($owner: String!, $name: String!) {
   viewer { login }
   repository(owner: $owner, name: $name) {
     pullRequests(states: OPEN, first: 50, orderBy: {field: UPDATED_AT, direction: DESC}) {
@@ -86,7 +86,7 @@ export async function fetchMyPRs(
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ query: QUERY, variables: { owner, name, login: "" } }),
+    body: JSON.stringify({ query: QUERY, variables: { owner, name } }),
   });
   if (!res.ok) {
     throw new Error(`GitHub API ${res.status}: ${await res.text()}`);
