@@ -403,6 +403,8 @@ export default function App() {
         : "live";
 
   return (
+    <>
+    <div aria-hidden className="overlay-scan" />
     <div className="app">
       {showSettings && (
         <SettingsModal
@@ -811,6 +813,7 @@ export default function App() {
         </main>
       )}
     </div>
+    </>
   );
 }
 
