@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { fetchInsightsPRs, fetchRepoStats, getPeriodRange } from "../lib/insights";
+import { fetchInsightsPRs, fetchRepoStats, fetchContributors, getPeriodRange } from "../lib/insights";
 import type { Period } from "../lib/insights";
 
 // ── Props ─────────────────────────────────────────────────────────────────────
@@ -10,6 +10,7 @@ interface Props {
   owner: string;
   repo: string;
   viewerLogin: string;
+  viewerAvatarUrl: string;
   repoCreatedAt: string;
   intervalMs: number;
   reviewQueueCount?: number;
@@ -81,6 +82,147 @@ function Card({ label, value, unit, accent, delta, invertDelta, foot }: CardProp
   );
 }
 
+// ── ContribPanel sub-component ────────────────────────────────────────────────
+
+interface ContribPanelProps {
+  viewerLogin: string;
+  viewerAvatarUrl: string;
+  totalCommits: number;
+  totalAdded: number;
+  totalRemoved: number;
+  myRank: number | null;
+  chartWeeks: Array<{ w: number; c: number }>;
+}
+
+function ContribPanel({
+  viewerLogin,
+  viewerAvatarUrl,
+  totalCommits,
+  totalAdded,
+  totalRemoved,
+  myRank,
+  chartWeeks,
+}: ContribPanelProps) {
+  const maxCommits = Math.max(1, ...chartWeeks.map((w) => w.c));
+
+  // Y-axis: 5 labels from maxCommits down to 0
+  const yLabels = [4, 3, 2, 1, 0].map((i) => Math.round((maxCommits * i) / 4));
+
+  // X-axis: ~5 evenly-spaced labels
+  const xIndices =
+    chartWeeks.length <= 1
+      ? [0]
+      : [0, 1, 2, 3, 4].map((i) => Math.round((i * (chartWeeks.length - 1)) / 4));
+  const uniqueXIndices = [...new Set(xIndices)];
+
+  const fmt = new Intl.DateTimeFormat("en-US", { month: "short", day: "2-digit" });
+
+  // SVG dimensions
+  const svgW = 720;
+  const svgH = 160;
+  const barArea = svgW; // bars fill full width; y-axis labels are outside (positioned absolute)
+  const barCount = chartWeeks.length;
+  const barW = barCount > 0 ? barArea / barCount : barArea;
+  const barGap = Math.max(1, barW * 0.15);
+  const barNetW = Math.max(1, barW - barGap);
+
+  // Grid lines at 25%, 50%, 75% heights (y positions in SVG)
+  const gridYs = [svgH * 0.25, svgH * 0.5, svgH * 0.75];
+
+  return (
+    <div className="contrib-panel">
+      <div className="contrib-head">
+        <div className="contrib-user">
+          {viewerAvatarUrl ? (
+            <img
+              className="avatar"
+              src={viewerAvatarUrl}
+              alt=""
+              style={{ objectFit: "cover", borderRadius: 0 }}
+            />
+          ) : (
+            <div className="avatar mono">{viewerLogin.slice(0, 2).toUpperCase()}</div>
+          )}
+          <div>
+            <div className="contrib-handle mono">@{viewerLogin}</div>
+            <div className="contrib-sub">
+              <span className="mono">
+                <strong>{totalCommits}</strong> COMMITS
+              </span>
+              <span className="t-green mono">
+                <strong>+{totalAdded.toLocaleString()}</strong>
+              </span>
+              <span className="t-red mono">
+                <strong>−{totalRemoved.toLocaleString()}</strong>
+              </span>
+            </div>
+          </div>
+        </div>
+        {myRank !== null && (
+          <div className="contrib-rank">
+            <div className="rank-label">REPO RANK</div>
+            <div className="rank-value mono">#{myRank}</div>
+          </div>
+        )}
+      </div>
+
+      <div className="contrib-chart-wrap">
+        <svg
+          viewBox={`0 0 ${svgW} ${svgH}`}
+          preserveAspectRatio="none"
+          className="contrib-chart"
+        >
+          {/* Grid lines */}
+          <g stroke="var(--border-muted)" strokeWidth="1" strokeDasharray="2 4">
+            {gridYs.map((y) => (
+              <line key={y} x1="0" y1={y} x2={svgW} y2={y} />
+            ))}
+          </g>
+
+          {/* Bars */}
+          <g fill="var(--accent)">
+            {chartWeeks.map((week, i) => {
+              const barHeight = (week.c / maxCommits) * svgH;
+              const x = i * barW + barGap / 2;
+              const y = svgH - barHeight;
+              return (
+                <rect
+                  key={week.w}
+                  x={x}
+                  y={y}
+                  width={barNetW}
+                  height={barHeight}
+                  opacity={week.c === 0 ? 0.25 : 1}
+                />
+              );
+            })}
+          </g>
+
+          {/* Bottom border */}
+          <line x1="0" y1={svgH} x2={svgW} y2={svgH} stroke="var(--border)" strokeWidth="1" />
+        </svg>
+
+        <div className="y-axis-labels">
+          {yLabels.map((v) => (
+            <span key={v} className="mono">
+              {v}
+            </span>
+          ))}
+        </div>
+
+        <div className="x-axis-labels">
+          {uniqueXIndices.map((idx) => {
+            const week = chartWeeks[idx];
+            if (!week) return null;
+            const label = fmt.format(new Date(week.w * 1000)).toUpperCase();
+            return <span key={week.w}>{label}</span>;
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── InsightsPanel ─────────────────────────────────────────────────────────────
 
 const VALID_PERIODS: Period[] = ["7d", "30d", "90d", "1y", "all"];
@@ -90,6 +232,7 @@ export function InsightsPanel({
   owner,
   repo,
   viewerLogin,
+  viewerAvatarUrl,
   repoCreatedAt,
   intervalMs,
   reviewQueueCount,
@@ -148,6 +291,29 @@ export function InsightsPanel({
     refetchInterval: intervalMs,
     enabled: Boolean(token && owner && repo),
   });
+
+  const { data: contributors } = useQuery({
+    queryKey: ["contributors", owner, repo],
+    queryFn: () => fetchContributors(token, owner, repo),
+    refetchInterval: intervalMs * 6,
+    enabled: Boolean(token && owner && repo),
+  });
+
+  // ── Contributor stats ───────────────────────────────────────────────────────
+
+  const myContributor = contributors?.find((c) => c.login === viewerLogin);
+  const allRanked = (contributors ?? []).slice().sort((a, b) => b.total - a.total);
+  const myRank = myContributor
+    ? allRanked.findIndex((c) => c.login === viewerLogin) + 1
+    : null;
+
+  const sinceMs = range.since ? new Date(range.since).getTime() / 1000 : 0;
+  const windowedWeeks = myContributor?.weeks.filter((w) => w.w >= sinceMs) ?? [];
+  const totalCommits = windowedWeeks.reduce((s, w) => s + w.c, 0);
+  const totalAdded = windowedWeeks.reduce((s, w) => s + w.a, 0);
+  const totalRemoved = windowedWeeks.reduce((s, w) => s + w.d, 0);
+
+  const chartWeeks = period === "all" ? windowedWeeks.slice(-26) : windowedWeeks;
 
   // ── Compute stats ───────────────────────────────────────────────────────────
 
@@ -232,6 +398,16 @@ export function InsightsPanel({
           Showing first 1000 PRs. Older results truncated.
         </div>
       )}
+
+      <ContribPanel
+        viewerLogin={viewerLogin}
+        viewerAvatarUrl={viewerAvatarUrl}
+        totalCommits={totalCommits}
+        totalAdded={totalAdded}
+        totalRemoved={totalRemoved}
+        myRank={myRank}
+        chartWeeks={chartWeeks}
+      />
 
       <div className="grid">
         <Card
