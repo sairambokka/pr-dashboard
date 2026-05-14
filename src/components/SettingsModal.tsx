@@ -48,6 +48,8 @@ export function SettingsModal({ settings, onSave, onClose }: Props) {
 
   async function testConnection() {
     setTestResult({ ok: false, message: "Testing…" });
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 10_000);
     try {
       const res = await fetch("https://api.github.com/graphql", {
         method: "POST",
@@ -56,16 +58,27 @@ export function SettingsModal({ settings, onSave, onClose }: Props) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ query: "query { viewer { login } }" }),
+        signal: controller.signal,
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = (await res.json()) as {
-        data?: { viewer?: { login?: string } };
-        errors?: { message?: string }[];
+        data?: { viewer?: { login: string } };
+        errors?: Array<{ message: string }>;
       };
-      if (data.errors) throw new Error(data.errors[0]?.message ?? "Unknown error");
-      setTestResult({ ok: true, message: `✓ Authenticated as @${data.data?.viewer?.login ?? "?"}` });
+      if (data.errors?.length) throw new Error(data.errors[0]?.message ?? "Unknown error");
+      const login = data.data?.viewer?.login;
+      if (!login) throw new Error("No viewer login in response");
+      setTestResult({ ok: true, message: `✓ Authenticated as @${login}` });
     } catch (e) {
-      setTestResult({ ok: false, message: `✗ ${e instanceof Error ? e.message : String(e)}` });
+      const message =
+        e instanceof DOMException && e.name === "AbortError"
+          ? "Timeout (10s)"
+          : e instanceof Error
+            ? e.message
+            : String(e);
+      setTestResult({ ok: false, message: `✗ ${message}` });
+    } finally {
+      clearTimeout(timer);
     }
   }
 
@@ -103,6 +116,7 @@ export function SettingsModal({ settings, onSave, onClose }: Props) {
                   type="button"
                   className="btn btn-ghost pat-toggle"
                   onClick={() => setShowToken((v) => !v)}
+                  aria-label={showToken ? "Hide token" : "Show token"}
                 >
                   {showToken ? "Hide" : "Show"}
                 </button>
