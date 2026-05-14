@@ -289,6 +289,151 @@ export async function fetchMyPRs(
   return { viewer, prs };
 }
 
+const TURNAROUND_QUERY = `
+query Turnaround($searchQ: String!) {
+  search(query: $searchQ, type: ISSUE, first: 50) {
+    nodes {
+      ... on PullRequest {
+        number createdAt closedAt mergedAt
+        author { login }
+        timelineItems(first: 100, itemTypes: [REVIEW_REQUESTED_EVENT, PULL_REQUEST_REVIEW]) {
+          nodes {
+            __typename
+            ... on ReviewRequestedEvent {
+              createdAt
+              requestedReviewer { ... on User { login } ... on Team { name slug } }
+            }
+            ... on PullRequestReview {
+              submittedAt
+              author { login }
+              state
+            }
+          }
+        }
+      }
+    }
+  }
+}`;
+
+export interface TurnaroundStat {
+  avgDays: number | null;
+  sampleSize: number;
+}
+
+type GqlTurnaroundTimelineNode =
+  | {
+      __typename: "ReviewRequestedEvent";
+      createdAt: string;
+      requestedReviewer: GqlRequestedReviewer;
+    }
+  | {
+      __typename: "PullRequestReview";
+      submittedAt: string | null;
+      author: { login: string } | null;
+      state: ReviewState;
+    };
+
+type GqlTurnaroundPRNode = {
+  number: number;
+  createdAt: string;
+  closedAt: string | null;
+  mergedAt: string | null;
+  author: { login: string } | null;
+  timelineItems: { nodes: GqlTurnaroundTimelineNode[] };
+};
+
+interface GqlTurnaroundResp {
+  data?: {
+    search: {
+      nodes: Array<GqlTurnaroundPRNode | Record<string, never>>;
+    };
+  };
+  errors?: Array<{ message: string }>;
+}
+
+export async function fetchTurnaround(
+  token: string,
+  owner: string,
+  name: string,
+  _viewerLogin: string,
+): Promise<TurnaroundStat> {
+  const iso = new Date(Date.now() - 30 * 86_400_000).toISOString().slice(0, 10);
+  const searchQ = `is:pr is:closed repo:${owner}/${name} closed:>=${iso}`;
+  const res = await fetch(GQL_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ query: TURNAROUND_QUERY, variables: { searchQ } }),
+  });
+  if (!res.ok) {
+    throw new Error(`GitHub API ${res.status}: ${await res.text()}`);
+  }
+  const json: GqlTurnaroundResp = await res.json();
+  if (json.errors?.length) {
+    throw new Error(json.errors.map((e) => e.message).join("; "));
+  }
+  if (!json.data) throw new Error("Empty GraphQL response");
+
+  const deltas: number[] = [];
+
+  for (const node of json.data.search.nodes) {
+    if (!("number" in node)) continue;
+    const pr = node as GqlTurnaroundPRNode;
+    const prAuthorLogin = pr.author?.login ?? null;
+
+    const requestEvents: Array<{ createdAt: string; reviewerLogin: string }> = [];
+    const reviewEvents: Array<{ submittedAt: string; authorLogin: string }> = [];
+
+    for (const item of pr.timelineItems.nodes) {
+      if (item.__typename === "ReviewRequestedEvent") {
+        if (item.requestedReviewer != null && "login" in item.requestedReviewer) {
+          requestEvents.push({
+            createdAt: item.createdAt,
+            reviewerLogin: item.requestedReviewer.login,
+          });
+        }
+        // skip team reviewers for this metric
+      } else if (item.__typename === "PullRequestReview") {
+        const authorLogin = item.author?.login ?? null;
+        if (!authorLogin) continue;
+        if (!item.submittedAt) continue;
+        // exclude self-reviews
+        if (authorLogin === prAuthorLogin) continue;
+        // only substantive reviews
+        if (item.state === "PENDING" || item.state === "COMMENTED") continue;
+        reviewEvents.push({ submittedAt: item.submittedAt, authorLogin });
+      }
+    }
+
+    for (const req of requestEvents) {
+      const reqTime = new Date(req.createdAt).getTime();
+      // Find earliest subsequent review by a different author (not the requester)
+      let earliest: number | null = null;
+      for (const rev of reviewEvents) {
+        const revTime = new Date(rev.submittedAt).getTime();
+        if (rev.authorLogin === req.reviewerLogin) continue;
+        if (revTime < reqTime) continue;
+        if (earliest === null || revTime < earliest) {
+          earliest = revTime;
+        }
+      }
+      if (earliest !== null) {
+        deltas.push((earliest - reqTime) / 86_400_000);
+      }
+    }
+  }
+
+  if (deltas.length === 0) {
+    return { avgDays: null, sampleSize: 0 };
+  }
+
+  const sum = deltas.reduce((a, b) => a + b, 0);
+  const avgDays = Math.round((sum / deltas.length) * 10) / 10;
+  return { avgDays, sampleSize: deltas.length };
+}
+
 export async function fetchAwaitingReview(
   token: string,
   owner: string,

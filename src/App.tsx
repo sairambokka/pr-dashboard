@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { fetchAwaitingReview, fetchMyPRs, type AwaitingReviewPR, type PRSummary } from "./lib/github";
+import {
+  fetchAwaitingReview,
+  fetchMyPRs,
+  fetchTurnaround,
+  type AwaitingReviewPR,
+  type PRSummary,
+} from "./lib/github";
 import {
   loadSeen,
   loadSettings,
@@ -149,6 +155,13 @@ export default function App() {
       fetchAwaitingReview(settings.token, settings.owner, settings.repo, viewer.login),
     refetchInterval: settings.intervalSec * 1000,
     enabled: configured && Boolean(viewer.login) && scope === "awaiting",
+  });
+
+  const turnaroundQuery = useQuery({
+    queryKey: ["turnaround", settings.owner, settings.repo],
+    queryFn: () => fetchTurnaround(settings.token, settings.owner, settings.repo, viewer.login),
+    refetchInterval: 10 * 60_000,
+    enabled: configured && scope === "awaiting",
   });
 
   const awaitingPRs: AwaitingReviewPR[] = awaitingQuery.data ?? [];
@@ -534,8 +547,18 @@ export default function App() {
                   </div>
                   <div className="summary-cell">
                     <div className="summary-label">AVG TURNAROUND</div>
-                    {/* TODO: P1.4 wires the turnaround query */}
-                    <div className="summary-value mono">—</div>
+                    <div className="summary-value mono">
+                      {turnaroundQuery.data == null
+                        ? "—"
+                        : turnaroundQuery.data.avgDays === null
+                          ? "—"
+                          : turnaroundQuery.data.avgDays < 10
+                            ? `${turnaroundQuery.data.avgDays.toFixed(1)}`
+                            : `${Math.round(turnaroundQuery.data.avgDays)}`}
+                      {turnaroundQuery.data?.avgDays != null && (
+                        <span className="summary-unit">D</span>
+                      )}
+                    </div>
                   </div>
                   <div className="summary-cell">
                     <div className="summary-label">OLDEST</div>
