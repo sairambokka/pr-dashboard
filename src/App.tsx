@@ -135,7 +135,7 @@ export default function App() {
     enabled: configured,
   });
 
-  const login = data?.login ?? "";
+  const login = data?.viewer.login ?? "";
   const prs = data?.prs ?? [];
 
   useEffect(() => {

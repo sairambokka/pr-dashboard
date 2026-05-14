@@ -2,7 +2,7 @@ const GQL_URL = "https://api.github.com/graphql";
 
 const QUERY = `
 query($owner: String!, $name: String!) {
-  viewer { login }
+  viewer { login name avatarUrl(size: 88) }
   repository(owner: $owner, name: $name) {
     pullRequests(states: OPEN, first: 50, orderBy: {field: UPDATED_AT, direction: DESC}) {
       nodes {
@@ -25,6 +25,25 @@ query($owner: String!, $name: String!) {
           nodes {
             commit {
               statusCheckRollup { state }
+            }
+          }
+        }
+        reviewRequests(first: 10) {
+          nodes {
+            requestedReviewer {
+              ... on User { login }
+              ... on Team { name slug }
+            }
+          }
+        }
+        timelineItems(first: 50, itemTypes: [REVIEW_REQUESTED_EVENT]) {
+          nodes {
+            ... on ReviewRequestedEvent {
+              createdAt
+              requestedReviewer {
+                ... on User { login }
+                ... on Team { name slug }
+              }
             }
           }
         }
@@ -53,11 +72,13 @@ export interface PRSummary {
   changeRequesters: string[];
   ciState: CiState | null;
   latestReviewSubmittedAt: string | null;
+  reviewRequestedReviewers: Array<{ kind: "user" | "team"; name: string }>;
+  reviewRequestedTimes: Array<{ createdAt: string; reviewerLogin: string | null; teamSlug: string | null }>;
 }
 
 interface GqlResp {
   data?: {
-    viewer: { login: string };
+    viewer: { login: string; name: string | null; avatarUrl: string };
     repository: {
       pullRequests: {
         nodes: Array<{
@@ -84,6 +105,17 @@ interface GqlResp {
               commit: { statusCheckRollup: { state: PRSummary["ciState"] } | null };
             }>;
           };
+          reviewRequests: {
+            nodes: Array<{
+              requestedReviewer: { login?: string; name?: string; slug?: string } | null;
+            }>;
+          };
+          timelineItems: {
+            nodes: Array<{
+              createdAt?: string;
+              requestedReviewer?: { login?: string; name?: string; slug?: string } | null;
+            }>;
+          };
         }>;
       };
     };
@@ -95,7 +127,7 @@ export async function fetchMyPRs(
   token: string,
   owner: string,
   name: string,
-): Promise<{ login: string; prs: PRSummary[] }> {
+): Promise<{ viewer: { login: string; name: string | null; avatarUrl: string }; prs: PRSummary[] }> {
   const res = await fetch(GQL_URL, {
     method: "POST",
     headers: {
@@ -113,7 +145,8 @@ export async function fetchMyPRs(
   }
   if (!json.data) throw new Error("Empty GraphQL response");
 
-  const login = json.data.viewer.login;
+  const viewer = json.data.viewer;
+  const login = viewer.login;
   const prs = json.data.repository.pullRequests.nodes
     .filter((p) => p.author?.login === login)
     .map<PRSummary>((p) => {
@@ -154,6 +187,23 @@ export async function fetchMyPRs(
         effective = "APPROVED";
       }
 
+      const reviewRequestedReviewers = p.reviewRequests.nodes
+        .map((r) => r.requestedReviewer)
+        .filter((r): r is NonNullable<typeof r> => r != null)
+        .map((r) =>
+          r.login
+            ? { kind: "user" as const, name: r.login }
+            : { kind: "team" as const, name: r.name ?? r.slug ?? "" },
+        );
+
+      const reviewRequestedTimes = p.timelineItems.nodes
+        .filter((n) => n.createdAt != null)
+        .map((n) => ({
+          createdAt: n.createdAt as string,
+          reviewerLogin: n.requestedReviewer?.login ?? null,
+          teamSlug: n.requestedReviewer?.slug ?? null,
+        }));
+
       return {
         number: p.number,
         title: p.title,
@@ -171,7 +221,9 @@ export async function fetchMyPRs(
         changeRequesters,
         ciState: ci,
         latestReviewSubmittedAt,
+        reviewRequestedReviewers,
+        reviewRequestedTimes,
       };
     });
-  return { login, prs };
+  return { viewer, prs };
 }
