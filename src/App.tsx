@@ -212,6 +212,10 @@ export default function App() {
     const next: SeenMap = { ...prior };
     const ciFailStates = new Set(["FAILURE", "ERROR"]);
 
+    const tabFocused = typeof document !== "undefined" && document.hasFocus();
+    const onPrsTab = route === "prs";
+    const shouldNotify = !(tabFocused && onPrsTab);
+
     for (const pr of fresh) {
       const snapshot: SeenEntry = {
         totalComments: pr.totalCommentCount,
@@ -224,7 +228,7 @@ export default function App() {
       }
       const p = prior[pr.number];
       const commentDelta = pr.totalCommentCount - p.totalComments;
-      if (commentDelta > 0) {
+      if (shouldNotify && commentDelta > 0) {
         notify(
           `PR #${pr.number}: ${commentDelta} new comment${commentDelta === 1 ? "" : "s"}`,
           pr.title,
@@ -235,14 +239,14 @@ export default function App() {
         pr.latestReviewSubmittedAt !== null &&
         (p.latestReviewSubmittedAt === null ||
           pr.latestReviewSubmittedAt > p.latestReviewSubmittedAt);
-      if (reviewAdvanced) {
+      if (shouldNotify && reviewAdvanced) {
         notify(`PR #${pr.number}: new review`, pr.title, pr.url);
       }
       const ciTurnedBad =
         pr.ciState !== null &&
         ciFailStates.has(pr.ciState) &&
         (p.ciState === null || !ciFailStates.has(p.ciState));
-      if (ciTurnedBad) {
+      if (shouldNotify && ciTurnedBad) {
         notify(`PR #${pr.number}: CI failed`, pr.title, pr.url);
       }
       next[pr.number] = snapshot;
@@ -271,7 +275,7 @@ export default function App() {
       setSeen(next);
       saveSeen(next);
     }
-  }, [data?.prs, dataUpdatedAt]);
+  }, [data?.prs, dataUpdatedAt, route]);
 
   const unreadByPr = useMemo(() => {
     const ciFailStates = new Set(["FAILURE", "ERROR"]);
@@ -301,6 +305,11 @@ export default function App() {
 
   useEffect(() => {
     setFaviconBadge(unreadByPr.total);
+  }, [unreadByPr.total]);
+
+  useEffect(() => {
+    const prefix = unreadByPr.total > 0 ? `(${unreadByPr.total}) ` : "";
+    document.title = `${prefix}PR Dashboard`;
   }, [unreadByPr.total]);
 
   const nextAction = useMemo((): NextAction | null => {
