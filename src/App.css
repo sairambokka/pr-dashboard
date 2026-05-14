@@ -885,3 +885,210 @@ code {
   color: var(--muted);
   margin-left: 4px;
 }
+
+/* ── Shared row layout ───────────────────────────────────────── */
+
+.row {
+  display: grid;
+  gap: 12px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border-muted);
+  align-items: center;
+  text-decoration: none;
+  color: inherit;
+  transition: background 80ms;
+}
+
+.row:last-child {
+  border-bottom: none;
+}
+
+.row:hover {
+  background: var(--panel);
+}
+
+/* ── Section header ──────────────────────────────────────────── */
+
+.section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.section-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+
+.section-meta {
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* ── Mono utility ────────────────────────────────────────────── */
+
+.mono {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Cadence sparkline ───────────────────────────────────────── */
+
+.cadence {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px 32px;
+  margin-bottom: 32px;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 32px;
+  align-items: center;
+}
+
+.cadence-label {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.cadence-label strong {
+  display: block;
+  font-size: 28px;
+  font-weight: 300;
+  color: var(--text);
+  letter-spacing: -0.01em;
+  margin-top: 6px;
+}
+
+.cadence-spark {
+  height: 64px;
+  width: 100%;
+}
+
+.cadence-stats {
+  display: flex;
+  gap: 40px;
+  text-align: right;
+}
+
+.cs-block {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.cs-block strong {
+  display: block;
+  font-size: 20px;
+  color: var(--text);
+  font-weight: 400;
+  margin-top: 4px;
+}
+
+/* ── Activity day groups ─────────────────────────────────────── */
+
+.day-block {
+  margin-bottom: 32px;
+}
+
+.day-header {
+  display: grid;
+  grid-template-columns: 110px 1fr auto;
+  gap: 24px;
+  align-items: baseline;
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.day-name {
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.day-meta {
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* ── Activity row ────────────────────────────────────────────── */
+
+.activity-row {
+  grid-template-columns: 110px 24px 1fr auto;
+}
+
+.ar-ts {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.ar-icon {
+  text-align: center;
+  font-size: 13px;
+  color: var(--accent);
+}
+
+.icon-merged {
+  color: var(--green);
+}
+
+.icon-opened {
+  color: var(--accent);
+}
+
+.icon-closed {
+  color: var(--red);
+}
+
+.ar-summary {
+  color: var(--text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ar-summary .actor {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.ar-summary .actor::before {
+  content: "@";
+  color: var(--accent);
+  opacity: 0.6;
+}
+
+.ar-summary .pr-ref {
+  color: var(--accent);
+}
+
+.ar-summary .pr-ref::before {
+  content: "#";
+}
+
+.ar-summary .title {
+  color: var(--text);
+}
+
+.ar-kind {
+  font-size: 10px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
