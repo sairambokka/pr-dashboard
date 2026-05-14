@@ -85,7 +85,7 @@ export async function fetchActivity(
 
   const cutoff = Date.now() - SEVEN_DAYS_MS;
   let allEvents = [...page1.events];
-  let feedEtag = page1.etag;
+  const feedEtag = page1.etag;
 
   // Check if oldest event on page 1 is within window — if so, fetch more pages
   const oldestOnPage1 = page1.events[page1.events.length - 1];

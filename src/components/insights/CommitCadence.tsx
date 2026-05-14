@@ -17,7 +17,7 @@ interface Props {
 
 const DAY_NAMES = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
 
-export function flattenLast30Days(weeks: CommitWeek[]): DayEntry[] {
+function flattenLast30Days(weeks: CommitWeek[]): DayEntry[] {
   const flat: DayEntry[] = [];
   for (const week of weeks) {
     for (let d = 0; d < 7; d++) {

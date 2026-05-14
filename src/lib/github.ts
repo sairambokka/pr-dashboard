@@ -484,14 +484,12 @@ export async function fetchAwaitingReview(
         viewerRequestTimes.length === 0 &&
         summary.reviewRequestedReviewers.some((r) => r.kind === "team");
 
-      let blockingSinceAt: string | null = null;
-      if (viewerRequestTimes.length > 0) {
-        blockingSinceAt = viewerRequestTimes.reduce((max, t) => (t > max ? t : max));
-      } else {
-        // Team-via-mention review requests aren't captured by individual-login timeline filtering.
-        // Falls back to PR createdAt — may overcount blocking days for team-only requests.
-        blockingSinceAt = node.createdAt;
-      }
+      const blockingSinceAt: string | null =
+        viewerRequestTimes.length > 0
+          ? viewerRequestTimes.reduce((max, t) => (t > max ? t : max))
+          : // Team-via-mention review requests aren't captured by individual-login timeline filtering.
+            // Falls back to PR createdAt — may overcount blocking days for team-only requests.
+            node.createdAt;
 
       const blockingDays =
         blockingSinceAt !== null

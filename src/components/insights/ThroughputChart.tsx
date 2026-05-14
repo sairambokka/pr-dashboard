@@ -29,7 +29,7 @@ function startOfWeek(isoDate: string): string {
   return d.toISOString().slice(0, 10);
 }
 
-export function computeThroughputBuckets(
+function computeThroughputBuckets(
   prs: InsightsPRSummary[],
   range: PeriodRange,
   period: string,

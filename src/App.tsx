@@ -157,7 +157,9 @@ export default function App() {
   const [showCheatsheet, setShowCheatsheet] = useState(false);
   const [scope, setScope] = useState<"authored" | "awaiting">("authored");
   const seenRef = useRef(seen);
-  seenRef.current = seen;
+  useEffect(() => {
+    seenRef.current = seen;
+  }, [seen]);
 
   const activityIntervalMs = isVisible ? settings.intervalSec * 1000 : POLL_HIDDEN_MS;
   const configured = Boolean(settings.token && settings.owner && settings.repo);
@@ -178,14 +180,14 @@ export default function App() {
     queryFn: () =>
       fetchAwaitingReview(settings.token, settings.owner, settings.repo, viewer.login),
     refetchInterval: settings.intervalSec * 1000,
-    enabled: configured && Boolean(viewer.login) && scope === "awaiting",
+    enabled: configured && Boolean(viewer.login) && (route === "prs" || route === "insights"),
   });
 
   const turnaroundQuery = useQuery({
     queryKey: ["turnaround", settings.owner, settings.repo],
     queryFn: () => fetchTurnaround(settings.token, settings.owner, settings.repo),
     refetchInterval: POLL_TURNAROUND_MS,
-    enabled: configured && Boolean(viewer.login) && scope === "awaiting",
+    enabled: configured && Boolean(viewer.login) && (route === "prs" || route === "insights"),
   });
 
   const awaitingPRs: AwaitingReviewPR[] = awaitingQuery.data ?? [];
@@ -391,6 +393,15 @@ export default function App() {
   const lastFetch = dataUpdatedAt > 0 ? dataUpdatedAt : null;
   const tabPrsCount = authoredCount + awaitingCount;
 
+  const anyError = Boolean(error ?? awaitingQuery.error ?? turnaroundQuery.error);
+  const liveState: "live" | "paused" | "error" = !configured
+    ? "paused"
+    : !isVisible
+      ? "paused"
+      : anyError
+        ? "error"
+        : "live";
+
   return (
     <div className="app">
       {showSettings && (
@@ -417,6 +428,10 @@ export default function App() {
             {login && <span className="brand-user">@{login}</span>}
           </div>
           <div className="topbar-actions">
+            <span className={`live-pill live-pill-${liveState}`}>
+              <span className="live-dot" />
+              {liveState.toUpperCase()}
+            </span>
             {lastFetch && (
               <span className="ts">Updated {relativeTime(new Date(lastFetch).toISOString())}</span>
             )}
@@ -441,11 +456,16 @@ export default function App() {
         </div>
         {configured && (
           <div className="subbar">
-            <span className="repo-crumb">
+            <a
+              className="repo-crumb"
+              href={`https://github.com/${settings.owner}/${settings.repo}`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
               {settings.owner}
               <span className="slash">/</span>
               <strong>{settings.repo}</strong>
-            </span>
+            </a>
           </div>
         )}
         <nav className="tabs">
@@ -668,6 +688,7 @@ export default function App() {
                       const isBlocking =
                         !pr.isTeamRequest && pr.blockingDays !== null && pr.blockingDays >= BLOCKING_THRESHOLD_DAYS;
                       const created = relativeTime(pr.updatedAt);
+                      const unreadCount = unreadByPr.map[pr.number]?.count ?? 0;
                       return (
                         <li
                           key={pr.number}
@@ -708,6 +729,11 @@ export default function App() {
                             </div>
                           </div>
                           <div className="pr-right">
+                            {unreadCount > 0 && (
+                              <span className="unread-bubble" title={`${unreadCount} new comment${unreadCount === 1 ? "" : "s"}`}>
+                                {unreadCount > 99 ? "99+" : unreadCount}
+                              </span>
+                            )}
                             {pr.totalCommentCount > 0 && (
                               <span className="comment-count" title="Total comments">
                                 <CommentIcon />

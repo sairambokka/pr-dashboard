@@ -116,6 +116,29 @@ code {
   margin-right: 8px;
 }
 
+.live-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--muted);
+}
+.live-pill .live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.live-pill-live .live-dot { animation: pulse 1.6s ease-in-out infinite; }
+.live-pill-error .live-dot { background: var(--red, #f85149); }
+.live-pill-paused .live-dot { background: var(--muted); }
+@keyframes pulse { 0%, 100% { opacity: 0.3; } 50% { opacity: 1; } }
+
 .btn {
   background: var(--panel);
   color: var(--text);
@@ -167,6 +190,10 @@ code {
   color: var(--muted);
   font-size: 14px;
   letter-spacing: -0.01em;
+  text-decoration: none;
+}
+.repo-crumb:hover {
+  text-decoration: underline;
 }
 
 .repo-crumb strong {

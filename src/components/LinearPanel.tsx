@@ -94,14 +94,6 @@ function prStateLabel(pr: PRSummary): string {
 }
 
 export function LinearPanel({ apiKey, teamId, authoredPRs, intervalMs }: Props) {
-  if (!apiKey) {
-    return (
-      <div className="pr-empty">
-        Configure Linear API key in Settings
-      </div>
-    );
-  }
-
   const viewerQuery = useQuery({
     queryKey: ["linearViewer"],
     queryFn: () => fetchLinearViewer(apiKey),

@@ -15,7 +15,7 @@ interface Props {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-export function aggregateReviewers(
+function aggregateReviewers(
   prs: InsightsPRSummary[],
   viewerLogin: string,
 ): ReviewerCount[] {
