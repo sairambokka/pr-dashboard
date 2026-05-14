@@ -152,6 +152,17 @@ export default function App() {
   const authoredCount = prs.length;
   const awaitingCount = awaitingQuery.data?.length ?? 0;
 
+  const awaitingSummary = useMemo(() => {
+    const pendingCount = awaitingPRs.length;
+    const blocking3Count = awaitingPRs.filter(
+      (p) => !p.isTeamRequest && (p.blockingDays ?? 0) >= 3,
+    ).length;
+    const nonTeamPRs = awaitingPRs.filter((p) => !p.isTeamRequest && p.blockingDays !== null);
+    const oldestDays =
+      nonTeamPRs.length > 0 ? Math.max(...nonTeamPRs.map((p) => p.blockingDays!)) : null;
+    return { pendingCount, blocking3Count, oldestDays };
+  }, [awaitingPRs]);
+
   useEffect(() => {
     void ensureNotifyPermission();
   }, []);
@@ -497,6 +508,48 @@ export default function App() {
                   {prs.length === 0 && !isFetching && (
                     <div className="pr-empty">No open PRs authored by you.</div>
                   )}
+                </div>
+              )}
+
+              {scope === "awaiting" && awaitingQuery.data && (
+                <div className="summary-bar">
+                  <div className="summary-cell">
+                    <div className="summary-label">PENDING</div>
+                    <div
+                      className={`summary-value mono ${awaitingSummary.pendingCount > 0 ? "accent" : ""}`}
+                    >
+                      {String(awaitingSummary.pendingCount).padStart(2, "0")}
+                    </div>
+                  </div>
+                  <div className="summary-cell">
+                    <div className="summary-label">BLOCKING ≥ 3D</div>
+                    <div
+                      className={`summary-value mono ${awaitingSummary.blocking3Count > 0 ? "danger" : ""}`}
+                    >
+                      {String(awaitingSummary.blocking3Count).padStart(2, "0")}
+                    </div>
+                  </div>
+                  <div className="summary-cell">
+                    <div className="summary-label">AVG TURNAROUND</div>
+                    <div className="summary-value mono">—</div>
+                  </div>
+                  <div className="summary-cell">
+                    <div className="summary-label">OLDEST</div>
+                    <div
+                      className={`summary-value mono ${awaitingSummary.oldestDays !== null && awaitingSummary.oldestDays >= 5 ? "danger" : ""}`}
+                    >
+                      {awaitingSummary.oldestDays !== null ? (
+                        <>
+                          {awaitingSummary.oldestDays}
+                          <span style={{ fontSize: "11px", color: "var(--muted)", marginLeft: "4px" }}>
+                            D
+                          </span>
+                        </>
+                      ) : (
+                        "—"
+                      )}
+                    </div>
+                  </div>
                 </div>
               )}
 
