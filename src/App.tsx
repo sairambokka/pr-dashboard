@@ -19,6 +19,8 @@ import {
 import { setFaviconBadge } from "./lib/favicon";
 import { ensureNotifyPermission, notify } from "./lib/notify";
 import { useRoute } from "./lib/router";
+import { useIsVisible } from "./lib/useVisibility";
+import { ActivityPanel } from "./components/ActivityPanel";
 import { SettingsModal } from "./components/SettingsModal";
 import "./App.css";
 
@@ -129,6 +131,7 @@ function ciIcon(state: PRSummary["ciState"]) {
 
 export default function App() {
   const route = useRoute();
+  const isVisible = useIsVisible();
   const [settings, setSettings] = useState<Settings>(loadSettings);
   const [seen, setSeen] = useState<SeenMap>(loadSeen);
   const [showSettings, setShowSettings] = useState(false);
@@ -136,6 +139,7 @@ export default function App() {
   const seenRef = useRef(seen);
   seenRef.current = seen;
 
+  const activityIntervalMs = isVisible ? settings.intervalSec * 1000 : 5 * 60_000;
   const configured = Boolean(settings.token && settings.owner && settings.repo);
 
   const { data, error, isFetching, dataUpdatedAt, refetch } = useQuery({
@@ -404,7 +408,7 @@ export default function App() {
         </nav>
       </header>
 
-      {route === "prs" ? (
+      {route === "prs" && (
         <main className="main">
           {errorMessage && <div className="error">{errorMessage}</div>}
 
@@ -650,7 +654,19 @@ export default function App() {
             </>
           )}
         </main>
-      ) : (
+      )}
+      {route === "activity" && (
+        <main className="main">
+          <ActivityPanel
+            token={settings.token}
+            owner={settings.owner}
+            repo={settings.repo}
+            hideBots={settings.hideBots ?? true}
+            intervalMs={activityIntervalMs}
+          />
+        </main>
+      )}
+      {route !== "prs" && route !== "activity" && (
         <main className="main">
           <p>Coming soon</p>
         </main>
