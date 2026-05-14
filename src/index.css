@@ -1,6 +1,7 @@
 @import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap");
 
 :root {
+  color-scheme: dark only;
   --bg: #0a0a0a;
   --panel: #111111;
   --panel-2: #161616;
@@ -29,7 +30,7 @@
 html,
 body {
   height: 100%;
-  background: var(--bg);
+  background: #0a0a0a;
   color: var(--body);
   font-family: "JetBrains Mono", ui-monospace, monospace;
   font-size: 13px;
