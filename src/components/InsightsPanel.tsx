@@ -1,7 +1,17 @@
 import { useMemo, useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { fetchInsightsPRs, fetchRepoStats, fetchContributors, getPeriodRange } from "../lib/insights";
+import {
+  fetchInsightsPRs,
+  fetchRepoStats,
+  fetchContributors,
+  fetchCommitActivity,
+  getPeriodRange,
+} from "../lib/insights";
 import type { Period } from "../lib/insights";
+import { ThroughputChart } from "./insights/ThroughputChart";
+import { TopReviewers } from "./insights/TopReviewers";
+import { CommitCadence } from "./insights/CommitCadence";
+import { RepoHealth } from "./insights/RepoHealth";
 
 // ── Props ─────────────────────────────────────────────────────────────────────
 
@@ -299,6 +309,13 @@ export function InsightsPanel({
     enabled: Boolean(token && owner && repo),
   });
 
+  const { data: commitActivity } = useQuery({
+    queryKey: ["commitActivity", owner, repo],
+    queryFn: () => fetchCommitActivity(token, owner, repo),
+    refetchInterval: intervalMs * 12,
+    enabled: Boolean(token && owner && repo),
+  });
+
   // ── Contributor stats ───────────────────────────────────────────────────────
 
   const myContributor = contributors?.find((c) => c.login === viewerLogin);
@@ -369,6 +386,10 @@ export function InsightsPanel({
   ).length;
   const prevCiFailRate =
     prevWithCI.length > 0 ? Math.round((prevFailed / prevWithCI.length) * 100) : null;
+
+  const mergedInPeriod = prs?.prs.filter((p) => p.mergedAt).length ?? 0;
+  const mergesPerDay =
+    range.days > 0 ? (mergedInPeriod / range.days).toFixed(1) : "—";
 
   const foot = `${viewerLogin.toUpperCase()} · ${period.toUpperCase()}`;
   const periodLabel = period === "all" ? "ALL TIME" : `ROLLING ${range.days} DAYS`;
@@ -453,6 +474,24 @@ export function InsightsPanel({
           invertDelta
           foot={`YOUR PRS · ${period.toUpperCase()}`}
         />
+      </div>
+
+      <div className="grid" style={{ gridTemplateColumns: "2fr 1fr" }}>
+        <ThroughputChart prs={prs?.prs} range={range} period={period} />
+        <TopReviewers prs={prs?.prs} viewerLogin={viewerLogin} />
+      </div>
+
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: "24px",
+          marginTop: "24px",
+          marginBottom: "32px",
+        }}
+      >
+        <CommitCadence data={commitActivity} />
+        <RepoHealth stats={repoStats} mergesPerDay={mergesPerDay} />
       </div>
     </div>
   );

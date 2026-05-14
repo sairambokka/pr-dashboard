@@ -1347,3 +1347,97 @@ img.avatar {
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
+
+/* ── Throughput chart card ───────────────────────────────────────────────────── */
+
+.chart-card {
+  padding: 24px;
+}
+
+.chart-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.chart-title {
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+
+.chart-legend {
+  font-size: 10px;
+  color: var(--muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  display: flex;
+  gap: 16px;
+}
+
+.legend-swatch {
+  display: inline-block;
+  width: 10px;
+  height: 2px;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+.chart-foot {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: var(--muted);
+  margin-top: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* ── Top reviewers ───────────────────────────────────────────────────────────── */
+
+.reviewer-row {
+  display: grid;
+  grid-template-columns: 140px 1fr 32px;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border-muted);
+}
+
+.reviewer-row:last-child {
+  border-bottom: none;
+}
+
+.reviewer-name {
+  color: var(--text);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reviewer-name::before {
+  content: "@";
+  color: var(--accent);
+  opacity: 0.6;
+}
+
+.reviewer-bar-bg {
+  height: 10px;
+  background: var(--border);
+  position: relative;
+}
+
+.reviewer-bar {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--accent);
+}
+
+.reviewer-count {
+  font-size: 11px;
+  text-align: right;
+  color: var(--muted);
+}
