@@ -731,3 +731,103 @@ code {
 .test-result.err {
   color: var(--red);
 }
+
+/* ── Scope toggle (Authored / Awaiting your review) ─────── */
+
+.scope-toggle {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 16px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 4px;
+  width: fit-content;
+}
+
+.scope-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: calc(var(--radius) - 2px);
+  color: var(--muted);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 20px;
+  padding: 4px 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition:
+    background 80ms,
+    color 80ms,
+    border-color 80ms;
+}
+
+.scope-btn:hover {
+  color: var(--text-dim);
+  background: var(--panel-hover);
+}
+
+.scope-btn[aria-pressed="true"] {
+  background: var(--bg-elev);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.scope-count {
+  background: var(--border);
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  min-width: 18px;
+  padding: 2px 5px;
+  text-align: center;
+}
+
+.scope-btn[aria-pressed="true"] .scope-count {
+  background: var(--accent);
+  color: #fff;
+}
+
+/* ── Blocking row ────────────────────────────────────────── */
+
+.pr-row.is-blocking {
+  background: linear-gradient(
+    to right,
+    rgba(210, 153, 34, 0.08),
+    rgba(210, 153, 34, 0) 60%
+  );
+}
+
+.pr-row.is-blocking::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--yellow);
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 7px;
+  height: 20px;
+  border-radius: var(--radius);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  border: 1px solid transparent;
+  line-height: 1;
+}
+
+.tag-blocking {
+  background: rgba(210, 153, 34, 0.15);
+  color: var(--yellow);
+  border-color: rgba(210, 153, 34, 0.4);
+}

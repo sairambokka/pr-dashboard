@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { fetchMyPRs, type PRSummary } from "./lib/github";
+import { fetchAwaitingReview, fetchMyPRs, type AwaitingReviewPR, type PRSummary } from "./lib/github";
 import {
   loadSeen,
   loadSettings,
@@ -123,6 +123,7 @@ export default function App() {
   const [settings, setSettings] = useState<Settings>(loadSettings);
   const [seen, setSeen] = useState<SeenMap>(loadSeen);
   const [showSettings, setShowSettings] = useState(false);
+  const [scope, setScope] = useState<"authored" | "awaiting">("authored");
   const seenRef = useRef(seen);
   seenRef.current = seen;
 
@@ -135,8 +136,21 @@ export default function App() {
     enabled: configured,
   });
 
-  const login = data?.viewer.login ?? "";
+  const viewer = data?.viewer ?? { login: "", name: null, avatarUrl: "" };
+  const login = viewer.login;
   const prs = data?.prs ?? [];
+
+  const awaitingQuery = useQuery({
+    queryKey: ["awaiting", settings.owner, settings.repo, viewer.login],
+    queryFn: () =>
+      fetchAwaitingReview(settings.token, settings.owner, settings.repo, viewer.login),
+    refetchInterval: settings.intervalSec * 1000,
+    enabled: configured && Boolean(viewer.login) && scope === "awaiting",
+  });
+
+  const awaitingPRs: AwaitingReviewPR[] = awaitingQuery.data ?? [];
+  const authoredCount = prs.length;
+  const awaitingCount = awaitingQuery.data?.length ?? 0;
 
   useEffect(() => {
     void ensureNotifyPermission();
@@ -273,6 +287,7 @@ export default function App() {
 
   const errorMessage = error instanceof Error ? error.message : error ? String(error) : null;
   const lastFetch = dataUpdatedAt > 0 ? dataUpdatedAt : null;
+  const tabPrsCount = authoredCount + awaitingCount;
 
   return (
     <div className="app">
@@ -335,7 +350,7 @@ export default function App() {
               className={`tab${route === "prs" ? " tab-nav-active" : ""}`}
               aria-current={route === "prs" ? "page" : undefined}
             >
-              PRS <span className="tab-count">{prs.length || ""}</span>
+              PRS <span className="tab-count">{tabPrsCount || ""}</span>
             </a>
             <a
               href="#/activity"
@@ -376,94 +391,179 @@ export default function App() {
           )}
 
           {configured && (
-            <div className="pr-panel">
-              <div className="pr-panel-header">
-                <div className="filter-tabs">
-                  <span className="tab tab-active">
-                    <PrIcon state="open" />
-                    <strong>{prs.length}</strong> Open
-                  </span>
-                  <span className="tab tab-muted">
-                    <CheckIcon /> Closed
-                  </span>
-                </div>
-                <div className="filter-spacers">
-                  <span className="filter-stub">
-                    Newest <Caret />
-                  </span>
-                </div>
+            <>
+              <div className="scope-toggle">
+                <button
+                  className="scope-btn"
+                  aria-pressed={scope === "authored"}
+                  onClick={() => setScope("authored")}
+                >
+                  Authored <span className="scope-count">{authoredCount}</span>
+                </button>
+                <button
+                  className="scope-btn"
+                  aria-pressed={scope === "awaiting"}
+                  onClick={() => setScope("awaiting")}
+                >
+                  Awaiting your review <span className="scope-count">{awaitingCount}</span>
+                </button>
               </div>
 
-              <ul className="pr-list">
-                {prs.map((pr) => {
-                  const unreadEntry = unreadByPr.map[pr.number];
-                  const isUnread = unreadEntry?.unread ?? false;
-                  const unreadCount = unreadEntry?.count ?? 0;
-                  const created = relativeTime(pr.updatedAt);
-                  return (
-                    <li key={pr.number} className={`pr-row ${isUnread ? "is-unread" : ""}`}>
-                      <div className="pr-icon-col">
-                        <PrIcon state={pr.isDraft ? "draft" : "open"} />
-                      </div>
-                      <div className="pr-body">
-                        <div className="pr-title-line">
-                          <a
-                            className="pr-link"
-                            href={pr.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={(e) => handlePrClick(e, pr)}
-                          >
-                            {pr.title}
-                          </a>
-                          {pr.isDraft && <span className="label label-muted">Draft</span>}
-                          {reviewBadge(pr)}
-                        </div>
-                        <div className="pr-meta-line">
-                          <span className="meta">
-                            {settings.owner}/{settings.repo}#{pr.number}
-                          </span>
-                          <span className="meta-sep">·</span>
-                          <span className="meta">opened {created}</span>
-                          {pr.ciState && (
-                            <>
-                              <span className="meta-sep">·</span>
-                              <span className="meta-ci">{ciIcon(pr.ciState)}</span>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                      <div className="pr-right">
-                        {unreadCount > 0 && (
-                          <button
-                            className="unread-bubble"
-                            title={`${unreadCount} new comment${unreadCount === 1 ? "" : "s"} — click to mark read`}
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              markRead(pr);
-                            }}
-                            aria-label={`${unreadCount} new comment${unreadCount === 1 ? "" : "s"}, click to mark read`}
-                          >
-                            {unreadCount > 99 ? "99+" : unreadCount}
-                          </button>
-                        )}
-                        {pr.totalCommentCount > 0 && (
-                          <span className="comment-count" title="Total comments">
-                            <CommentIcon />
-                            <span>{pr.totalCommentCount}</span>
-                          </span>
-                        )}
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
+              {scope === "authored" && (
+                <div className="pr-panel">
+                  <div className="pr-panel-header">
+                    <div className="filter-tabs">
+                      <span className="tab tab-active">
+                        <PrIcon state="open" />
+                        <strong>{prs.length}</strong> Open
+                      </span>
+                      <span className="tab tab-muted">
+                        <CheckIcon /> Closed
+                      </span>
+                    </div>
+                    <div className="filter-spacers">
+                      <span className="filter-stub">
+                        Newest <Caret />
+                      </span>
+                    </div>
+                  </div>
 
-              {prs.length === 0 && !isFetching && (
-                <div className="pr-empty">No open PRs authored by you.</div>
+                  <ul className="pr-list">
+                    {prs.map((pr) => {
+                      const unreadEntry = unreadByPr.map[pr.number];
+                      const isUnread = unreadEntry?.unread ?? false;
+                      const unreadCount = unreadEntry?.count ?? 0;
+                      const created = relativeTime(pr.updatedAt);
+                      return (
+                        <li key={pr.number} className={`pr-row ${isUnread ? "is-unread" : ""}`}>
+                          <div className="pr-icon-col">
+                            <PrIcon state={pr.isDraft ? "draft" : "open"} />
+                          </div>
+                          <div className="pr-body">
+                            <div className="pr-title-line">
+                              <a
+                                className="pr-link"
+                                href={pr.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => handlePrClick(e, pr)}
+                              >
+                                {pr.title}
+                              </a>
+                              {pr.isDraft && <span className="label label-muted">Draft</span>}
+                              {reviewBadge(pr)}
+                            </div>
+                            <div className="pr-meta-line">
+                              <span className="meta">
+                                {settings.owner}/{settings.repo}#{pr.number}
+                              </span>
+                              <span className="meta-sep">·</span>
+                              <span className="meta">opened {created}</span>
+                              {pr.ciState && (
+                                <>
+                                  <span className="meta-sep">·</span>
+                                  <span className="meta-ci">{ciIcon(pr.ciState)}</span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                          <div className="pr-right">
+                            {unreadCount > 0 && (
+                              <button
+                                className="unread-bubble"
+                                title={`${unreadCount} new comment${unreadCount === 1 ? "" : "s"} — click to mark read`}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  markRead(pr);
+                                }}
+                                aria-label={`${unreadCount} new comment${unreadCount === 1 ? "" : "s"}, click to mark read`}
+                              >
+                                {unreadCount > 99 ? "99+" : unreadCount}
+                              </button>
+                            )}
+                            {pr.totalCommentCount > 0 && (
+                              <span className="comment-count" title="Total comments">
+                                <CommentIcon />
+                                <span>{pr.totalCommentCount}</span>
+                              </span>
+                            )}
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+
+                  {prs.length === 0 && !isFetching && (
+                    <div className="pr-empty">No open PRs authored by you.</div>
+                  )}
+                </div>
               )}
-            </div>
+
+              {scope === "awaiting" && (
+                <div className="pr-panel">
+                  <ul className="pr-list">
+                    {awaitingPRs.map((pr) => {
+                      const isBlocking = pr.blockingDays !== null && pr.blockingDays >= 3;
+                      const created = relativeTime(pr.updatedAt);
+                      return (
+                        <li
+                          key={pr.number}
+                          className={`pr-row${isBlocking ? " is-blocking" : ""}`}
+                        >
+                          <div className="pr-icon-col">
+                            <PrIcon state={pr.isDraft ? "draft" : "open"} />
+                          </div>
+                          <div className="pr-body">
+                            <div className="pr-title-line">
+                              <a
+                                className="pr-link"
+                                href={pr.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                {pr.title}
+                              </a>
+                              {pr.isDraft && <span className="label label-muted">Draft</span>}
+                              {isBlocking && (
+                                <span className="tag tag-blocking">
+                                  ◆ BLOCKING {pr.blockingDays}D
+                                </span>
+                              )}
+                            </div>
+                            <div className="pr-meta-line">
+                              <span className="meta">
+                                {settings.owner}/{settings.repo}#{pr.number}
+                              </span>
+                              <span className="meta-sep">·</span>
+                              <span className="meta">updated {created}</span>
+                              {pr.ciState && (
+                                <>
+                                  <span className="meta-sep">·</span>
+                                  <span className="meta-ci">{ciIcon(pr.ciState)}</span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                          <div className="pr-right">
+                            {pr.totalCommentCount > 0 && (
+                              <span className="comment-count" title="Total comments">
+                                <CommentIcon />
+                                <span>{pr.totalCommentCount}</span>
+                              </span>
+                            )}
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+
+                  {awaitingPRs.length === 0 && !awaitingQuery.isFetching && (
+                    <div className="pr-empty">Nothing awaiting your review.</div>
+                  )}
+                </div>
+              )}
+            </>
           )}
         </main>
       ) : (
@@ -482,4 +582,3 @@ function Caret() {
     </svg>
   );
 }
-
