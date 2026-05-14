@@ -27,22 +27,32 @@ interface CadenceTotals {
   total: number;
 }
 
+function localISODate(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 function computeCadence(events: ActivityEvent[]): {
   buckets: CadenceBucket[];
   totals: CadenceTotals;
 } {
-  const now = Date.now();
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
   const dayMs = 86_400_000;
+
+  // 7 buckets with midnight-based boundaries matching groupByDay, oldest left, today rightmost
   const buckets: CadenceBucket[] = Array.from({ length: 7 }, (_, i) => {
-    const dayStart = new Date(now - (6 - i) * dayMs);
-    dayStart.setHours(0, 0, 0, 0);
-    return { date: dayStart.toISOString().slice(0, 10), opened: 0, merged: 0, closed: 0, total: 0 };
+    const dayStart = new Date(today.getTime() - (6 - i) * dayMs);
+    return { date: localISODate(dayStart), opened: 0, merged: 0, closed: 0, total: 0 };
   });
 
   for (const e of events) {
-    const t = new Date(e.timestamp).getTime();
-    const daysAgo = Math.floor((now - t) / dayMs);
-    if (daysAgo >= 7 || daysAgo < 0) continue;
+    const t = new Date(e.timestamp);
+    t.setHours(0, 0, 0, 0);
+    const daysAgo = Math.round((today.getTime() - t.getTime()) / dayMs);
+    if (daysAgo < 0 || daysAgo >= 7) continue;
     const b = buckets[6 - daysAgo];
     b[e.kind]++;
     b.total++;
@@ -161,7 +171,7 @@ function groupByDay(events: ActivityEvent[]): Array<{ label: string; count: numb
   for (const e of events) {
     const d = new Date(e.timestamp);
     d.setHours(0, 0, 0, 0);
-    const key = d.toISOString().slice(0, 10);
+    const key = localISODate(d);
     if (!map.has(key)) map.set(key, []);
     map.get(key)!.push(e);
   }
@@ -193,12 +203,9 @@ function formatHHmm(iso: string): string {
   return `${hh}:${mm}`;
 }
 
+// merged → filled diamond ◆; opened/closed both map to hollow diamond ◇
 function iconChar(kind: ActivityEvent["kind"]): string {
   return kind === "merged" ? "◆" : "◇";
-}
-
-function verb(kind: ActivityEvent["kind"]): string {
-  return kind;
 }
 
 // ── Main component ─────────────────────────────────────────────────────────
@@ -214,9 +221,9 @@ export function ActivityPanel({ token, owner, repo, hideBots, intervalMs }: Prop
         etag: etagRef.current ?? undefined,
         hideBots,
       });
-      // 304: empty events array signals "not modified" — keep cached feed
-      if (feed.events.length === 0 && etagRef.current && cachedFeedRef.current) {
-        return cachedFeedRef.current;
+      // 304: etag unchanged + empty events means server said "not modified" — return cached feed
+      if (etagRef.current && feed.etag === etagRef.current && feed.events.length === 0) {
+        return cachedFeedRef.current ?? feed;
       }
       etagRef.current = feed.etag;
       cachedFeedRef.current = feed;
@@ -273,7 +280,7 @@ export function ActivityPanel({ token, owner, repo, hideBots, intervalMs }: Prop
                 <span className="ar-ts mono">{formatHHmm(event.timestamp)}</span>
                 <span className={`ar-icon icon-${event.kind}`}>{iconChar(event.kind)}</span>
                 <span className="ar-summary">
-                  <span className="actor">{event.actor}</span> {verb(event.kind)}{" "}
+                  <span className="actor">{event.actor}</span> {event.kind}{" "}
                   <span className="pr-ref">{event.prNumber}</span>{" "}
                   <span className="title">{event.prTitle}</span>
                 </span>
