@@ -31,9 +31,11 @@ import { ensureNotifyPermission, notify } from "./lib/notify";
 import { useRoute } from "./lib/router";
 import { useIsVisible } from "./lib/useVisibility";
 import { ActivityPanel } from "./components/ActivityPanel";
+import { CheatsheetOverlay } from "./components/CheatsheetOverlay";
 import { InsightsPanel } from "./components/InsightsPanel";
 import { LinearPanel } from "./components/LinearPanel";
 import { SettingsModal } from "./components/SettingsModal";
+import { useKeyboardShortcuts } from "./lib/useKeyboardShortcuts";
 import "./App.css";
 
 function ageDescription(updatedAt: string): string {
@@ -152,6 +154,7 @@ export default function App() {
   const [settings, setSettings] = useState<Settings>(loadSettings);
   const [seen, setSeen] = useState<SeenMap>(loadSeen);
   const [showSettings, setShowSettings] = useState(false);
+  const [showCheatsheet, setShowCheatsheet] = useState(false);
   const [scope, setScope] = useState<"authored" | "awaiting">("authored");
   const seenRef = useRef(seen);
   seenRef.current = seen;
@@ -355,6 +358,15 @@ export default function App() {
     saveSeen(next);
   }, []);
 
+  useKeyboardShortcuts({
+    onRefresh: () => void refetch(),
+    onTab: (tab) => {
+      window.location.hash = `#/${tab}`;
+    },
+    onSettings: () => setShowSettings(true),
+    onCheatsheet: () => setShowCheatsheet(true),
+  });
+
   const markAllRead = useCallback(() => {
     const next: SeenMap = {};
     for (const pr of prs) {
@@ -391,6 +403,9 @@ export default function App() {
           }}
           onClose={() => setShowSettings(false)}
         />
+      )}
+      {showCheatsheet && (
+        <CheatsheetOverlay open={showCheatsheet} onClose={() => setShowCheatsheet(false)} />
       )}
       <header className="topbar">
         <div className="topbar-inner">

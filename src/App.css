@@ -1680,3 +1680,29 @@ img.avatar {
   color: var(--muted);
   letter-spacing: 0.04em;
 }
+
+/* ── Cheatsheet overlay ──────────────────────────────────────────────────── */
+
+.cheatsheet-table {
+  width: 100%;
+  font-size: 13px;
+}
+
+.cheatsheet-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-muted);
+}
+
+.cheatsheet-table td:first-child {
+  width: 60px;
+  text-align: right;
+}
+
+.cheatsheet-table kbd {
+  background: var(--panel-hover);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 12px;
+}
