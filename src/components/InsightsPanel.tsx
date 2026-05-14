@@ -306,18 +306,20 @@ export function InsightsPanel({
     enabled: Boolean(token && owner && repo),
   });
 
-  const { data: contributors } = useQuery({
+  const { data: contributors, error: contributorsError } = useQuery({
     queryKey: ["contributors", owner, repo],
     queryFn: () => fetchContributors(token, owner, repo),
     refetchInterval: POLL_HOURLY_MS,
     enabled: Boolean(token && owner && repo),
+    retry: 1,
   });
 
-  const { data: commitActivity } = useQuery({
+  const { data: commitActivity, error: commitActivityError } = useQuery({
     queryKey: ["commitActivity", owner, repo],
     queryFn: () => fetchCommitActivity(token, owner, repo),
     refetchInterval: POLL_HOURLY_MS,
     enabled: Boolean(token && owner && repo),
+    retry: 1,
   });
 
   // ── Contributor stats ───────────────────────────────────────────────────────
@@ -442,6 +444,26 @@ export function InsightsPanel({
       {prs?.hasMore === true && period === "all" && (
         <div className="banner banner-info">
           Showing first 1000 PRs. Older results truncated.
+        </div>
+      )}
+
+      {contributorsError && (
+        <div className="error">
+          Contributors stats unavailable: {String((contributorsError as Error).message)}
+        </div>
+      )}
+
+      {commitActivityError && (
+        <div className="error">
+          Commit activity unavailable: {String((commitActivityError as Error).message)}
+        </div>
+      )}
+
+      {!contributorsError && contributors && contributors.length > 0 && !contributors.find((c) => c.login === viewerLogin) && (
+        <div className="banner banner-info">
+          No commits found for @{viewerLogin} in {owner}/{repo}. Available
+          contributors: {contributors.slice(0, 5).map((c) => `@${c.login}`).join(", ")}
+          {contributors.length > 5 ? `, +${contributors.length - 5} more` : ""}.
         </div>
       )}
 
