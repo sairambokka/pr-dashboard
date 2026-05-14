@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { fetchMyPRs, type PRSummary } from "./lib/github";
 import {
   loadSeen,
@@ -10,6 +11,7 @@ import {
 } from "./lib/storage";
 import { setFaviconBadge } from "./lib/favicon";
 import { ensureNotifyPermission, notify } from "./lib/notify";
+import { useRoute } from "./lib/router";
 import "./App.css";
 
 function relativeTime(iso: string): string {
@@ -115,73 +117,56 @@ function ciIcon(state: PRSummary["ciState"]) {
 }
 
 export default function App() {
+  const route = useRoute();
   const [settings, setSettings] = useState<Settings>(loadSettings);
-  const [prs, setPrs] = useState<PRSummary[]>([]);
   const [seen, setSeen] = useState<SeenMap>(loadSeen);
-  const [login, setLogin] = useState<string>("");
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [lastFetch, setLastFetch] = useState<number | null>(null);
   const seenRef = useRef(seen);
   seenRef.current = seen;
 
-  const configured = settings.token && settings.owner && settings.repo;
+  const configured = Boolean(settings.token && settings.owner && settings.repo);
 
-  const refresh = useCallback(async () => {
-    if (!configured) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const { login: viewer, prs: fresh } = await fetchMyPRs(
-        settings.token,
-        settings.owner,
-        settings.repo,
-      );
-      setLogin(viewer);
-      setPrs(fresh);
-      setLastFetch(Date.now());
+  const { data, error, isFetching, dataUpdatedAt, refetch } = useQuery({
+    queryKey: ["prs", settings.owner, settings.repo],
+    queryFn: () => fetchMyPRs(settings.token, settings.owner, settings.repo),
+    refetchInterval: settings.intervalSec * 1000,
+    enabled: configured,
+  });
 
-      const prior = seenRef.current;
-      const next: SeenMap = { ...prior };
-
-      for (const pr of fresh) {
-        if (!(pr.number in prior)) {
-          next[pr.number] = pr.totalCommentCount;
-          continue;
-        }
-        const delta = pr.totalCommentCount - prior[pr.number];
-        if (delta > 0) {
-          notify(
-            `PR #${pr.number}: ${delta} new comment${delta === 1 ? "" : "s"}`,
-            pr.title,
-            pr.url,
-          );
-        }
-      }
-      for (const key of Object.keys(next)) {
-        if (!fresh.some((p) => String(p.number) === key)) delete next[Number(key)];
-      }
-
-      setSeen(next);
-      saveSeen(next);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setLoading(false);
-    }
-  }, [configured, settings.token, settings.owner, settings.repo]);
-
-  useEffect(() => {
-    if (!configured) return;
-    void refresh();
-    const id = setInterval(refresh, settings.intervalSec * 1000);
-    return () => clearInterval(id);
-  }, [configured, settings.intervalSec, refresh]);
+  const login = data?.login ?? "";
+  const prs = data?.prs ?? [];
 
   useEffect(() => {
     void ensureNotifyPermission();
   }, []);
+
+  useEffect(() => {
+    if (!data) return;
+    const { prs: fresh } = data;
+    const prior = seenRef.current;
+    const next: SeenMap = { ...prior };
+
+    for (const pr of fresh) {
+      if (!(pr.number in prior)) {
+        next[pr.number] = pr.totalCommentCount;
+        continue;
+      }
+      const delta = pr.totalCommentCount - prior[pr.number];
+      if (delta > 0) {
+        notify(
+          `PR #${pr.number}: ${delta} new comment${delta === 1 ? "" : "s"}`,
+          pr.title,
+          pr.url,
+        );
+      }
+    }
+    for (const key of Object.keys(next)) {
+      if (!fresh.some((p) => String(p.number) === key)) delete next[Number(key)];
+    }
+
+    setSeen(next);
+    saveSeen(next);
+  }, [data]);
 
   const unreadByPr = useMemo(() => {
     const map: Record<number, number> = {};
@@ -199,18 +184,18 @@ export default function App() {
     setFaviconBadge(unreadByPr.total);
   }, [unreadByPr.total]);
 
-  const markRead = (prNumber: number, currentCount: number) => {
+  const markRead = useCallback((prNumber: number, currentCount: number) => {
     const next = { ...seenRef.current, [prNumber]: currentCount };
     setSeen(next);
     saveSeen(next);
-  };
+  }, []);
 
-  const markAllRead = () => {
+  const markAllRead = useCallback(() => {
     const next: SeenMap = {};
     for (const pr of prs) next[pr.number] = pr.totalCommentCount;
     setSeen(next);
     saveSeen(next);
-  };
+  }, [prs]);
 
   const handlePrClick = (e: React.MouseEvent<HTMLAnchorElement>, pr: PRSummary) => {
     if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
@@ -218,6 +203,9 @@ export default function App() {
     markRead(pr.number, pr.totalCommentCount);
     window.open(pr.url, "_blank", "noopener,noreferrer");
   };
+
+  const errorMessage = error instanceof Error ? error.message : error ? String(error) : null;
+  const lastFetch = dataUpdatedAt > 0 ? dataUpdatedAt : null;
 
   return (
     <div className="app">
@@ -234,8 +222,12 @@ export default function App() {
             {lastFetch && (
               <span className="ts">Updated {relativeTime(new Date(lastFetch).toISOString())}</span>
             )}
-            <button className="btn btn-ghost" onClick={refresh} disabled={!configured || loading}>
-              {loading ? "Refreshing…" : "Refresh"}
+            <button
+              className="btn btn-ghost"
+              onClick={() => void refetch()}
+              disabled={!configured || isFetching}
+            >
+              {isFetching ? "Refreshing…" : "Refresh"}
             </button>
             <button
               className="btn btn-ghost"
@@ -258,124 +250,159 @@ export default function App() {
             </span>
           </div>
         )}
+        <nav className="tabs">
+          <div className="tabs-row">
+            <a
+              href="#/prs"
+              className={`tab${route === "prs" ? " tab-nav-active" : ""}`}
+              aria-current={route === "prs" ? "page" : undefined}
+            >
+              PRS <span className="tab-count">{prs.length || ""}</span>
+            </a>
+            <a
+              href="#/activity"
+              className={`tab${route === "activity" ? " tab-nav-active" : ""}`}
+              aria-current={route === "activity" ? "page" : undefined}
+            >
+              ACTIVITY
+            </a>
+            <a
+              href="#/insights"
+              className={`tab${route === "insights" ? " tab-nav-active" : ""}`}
+              aria-current={route === "insights" ? "page" : undefined}
+            >
+              INSIGHTS
+            </a>
+            <a
+              href="#/linear"
+              className={`tab${route === "linear" ? " tab-nav-active" : ""}`}
+              aria-current={route === "linear" ? "page" : undefined}
+            >
+              LINEAR
+            </a>
+          </div>
+        </nav>
       </header>
 
-      <main className="main">
-        {showSettings && (
-          <SettingsPanel
-            settings={settings}
-            onSave={(s) => {
-              setSettings(s);
-              saveSettings(s);
-              setShowSettings(false);
-            }}
-            onClose={() => setShowSettings(false)}
-          />
-        )}
+      {route === "prs" ? (
+        <main className="main">
+          {showSettings && (
+            <SettingsPanel
+              settings={settings}
+              onSave={(s) => {
+                setSettings(s);
+                saveSettings(s);
+                setShowSettings(false);
+              }}
+              onClose={() => setShowSettings(false)}
+            />
+          )}
 
-        {error && <div className="error">{error}</div>}
+          {errorMessage && <div className="error">{errorMessage}</div>}
 
-        {!configured && !showSettings && (
-          <div className="empty">
-            <p>Configure your GitHub PAT and target repo to start.</p>
-            <button className="btn btn-primary" onClick={() => setShowSettings(true)}>
-              Open settings
-            </button>
-          </div>
-        )}
-
-        {configured && (
-          <div className="pr-panel">
-            <div className="pr-panel-header">
-              <div className="filter-tabs">
-                <span className="tab tab-active">
-                  <PrIcon state="open" />
-                  <strong>{prs.length}</strong> Open
-                </span>
-                <span className="tab tab-muted">
-                  <CheckIcon /> Closed
-                </span>
-              </div>
-              <div className="filter-spacers">
-                <span className="filter-stub">
-                  Newest <Caret />
-                </span>
-              </div>
+          {!configured && !showSettings && (
+            <div className="empty">
+              <p>Configure your GitHub PAT and target repo to start.</p>
+              <button className="btn btn-primary" onClick={() => setShowSettings(true)}>
+                Open settings
+              </button>
             </div>
+          )}
 
-            <ul className="pr-list">
-              {prs.map((pr) => {
-                const unread = unreadByPr.map[pr.number] ?? 0;
-                const created = relativeTime(pr.updatedAt);
-                return (
-                  <li
-                    key={pr.number}
-                    className={`pr-row ${unread > 0 ? "is-unread" : ""}`}
-                  >
-                    <div className="pr-icon-col">
-                      <PrIcon state={pr.isDraft ? "draft" : "open"} />
-                    </div>
-                    <div className="pr-body">
-                      <div className="pr-title-line">
-                        <a
-                          className="pr-link"
-                          href={pr.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={(e) => handlePrClick(e, pr)}
-                        >
-                          {pr.title}
-                        </a>
-                        {pr.isDraft && <span className="label label-muted">Draft</span>}
-                        {reviewBadge(pr)}
+          {configured && (
+            <div className="pr-panel">
+              <div className="pr-panel-header">
+                <div className="filter-tabs">
+                  <span className="tab tab-active">
+                    <PrIcon state="open" />
+                    <strong>{prs.length}</strong> Open
+                  </span>
+                  <span className="tab tab-muted">
+                    <CheckIcon /> Closed
+                  </span>
+                </div>
+                <div className="filter-spacers">
+                  <span className="filter-stub">
+                    Newest <Caret />
+                  </span>
+                </div>
+              </div>
+
+              <ul className="pr-list">
+                {prs.map((pr) => {
+                  const unread = unreadByPr.map[pr.number] ?? 0;
+                  const created = relativeTime(pr.updatedAt);
+                  return (
+                    <li key={pr.number} className={`pr-row ${unread > 0 ? "is-unread" : ""}`}>
+                      <div className="pr-icon-col">
+                        <PrIcon state={pr.isDraft ? "draft" : "open"} />
                       </div>
-                      <div className="pr-meta-line">
-                        <span className="meta">
-                          {settings.owner}/{settings.repo}#{pr.number}
-                        </span>
-                        <span className="meta-sep">·</span>
-                        <span className="meta">opened {created}</span>
-                        {pr.ciState && (
-                          <>
-                            <span className="meta-sep">·</span>
-                            <span className="meta-ci">{ciIcon(pr.ciState)}</span>
-                          </>
+                      <div className="pr-body">
+                        <div className="pr-title-line">
+                          <a
+                            className="pr-link"
+                            href={pr.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => handlePrClick(e, pr)}
+                          >
+                            {pr.title}
+                          </a>
+                          {pr.isDraft && <span className="label label-muted">Draft</span>}
+                          {reviewBadge(pr)}
+                        </div>
+                        <div className="pr-meta-line">
+                          <span className="meta">
+                            {settings.owner}/{settings.repo}#{pr.number}
+                          </span>
+                          <span className="meta-sep">·</span>
+                          <span className="meta">opened {created}</span>
+                          {pr.ciState && (
+                            <>
+                              <span className="meta-sep">·</span>
+                              <span className="meta-ci">{ciIcon(pr.ciState)}</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      <div className="pr-right">
+                        {unread > 0 && (
+                          <button
+                            className="unread-bubble"
+                            title={`${unread} new — click to mark read`}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              markRead(pr.number, pr.totalCommentCount);
+                            }}
+                            aria-label={`${unread} new comments, click to mark read`}
+                          >
+                            {unread > 99 ? "99+" : unread}
+                          </button>
+                        )}
+                        {pr.totalCommentCount > 0 && (
+                          <span className="comment-count" title="Total comments">
+                            <CommentIcon />
+                            <span>{pr.totalCommentCount}</span>
+                          </span>
                         )}
                       </div>
-                    </div>
-                    <div className="pr-right">
-                      {unread > 0 && (
-                        <button
-                          className="unread-bubble"
-                          title={`${unread} new — click to mark read`}
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            markRead(pr.number, pr.totalCommentCount);
-                          }}
-                          aria-label={`${unread} new comments, click to mark read`}
-                        >
-                          {unread > 99 ? "99+" : unread}
-                        </button>
-                      )}
-                      {pr.totalCommentCount > 0 && (
-                        <span className="comment-count" title="Total comments">
-                          <CommentIcon />
-                          <span>{pr.totalCommentCount}</span>
-                        </span>
-                      )}
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
+                    </li>
+                  );
+                })}
+              </ul>
 
-            {prs.length === 0 && !loading && (
-              <div className="pr-empty">No open PRs authored by you.</div>
-            )}
-          </div>
-        )}
-      </main>
+              {prs.length === 0 && !isFetching && (
+                <div className="pr-empty">No open PRs authored by you.</div>
+              )}
+            </div>
+          )}
+        </main>
+      ) : (
+        <main className="main">
+          <p>Coming soon</p>
+        </main>
+      )}
     </div>
   );
 }
