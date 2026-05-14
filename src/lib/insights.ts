@@ -10,7 +10,9 @@ export type Period = "7d" | "30d" | "90d" | "1y" | "all";
 export interface PeriodRange {
   since: string; // ISO date YYYY-MM-DD
   until: string; // ISO date YYYY-MM-DD (today)
+  /** Empty string when period === "all"; check `days === 0` before computing delta. */
   previousSince: string;
+  /** Empty string when period === "all". */
   previousUntil: string;
   days: number; // total window days, or 0 for ALL
 }
@@ -130,8 +132,10 @@ export interface InsightsPRSummary {
 }
 
 const INSIGHTS_PRS_QUERY = `
-query InsightsPRs($searchQ: String!) {
-  search(query: $searchQ, type: ISSUE, first: 100) {
+query InsightsPRs($searchQ: String!, $cursor: String) {
+  search(query: $searchQ, type: ISSUE, first: 100, after: $cursor) {
+    issueCount
+    pageInfo { endCursor hasNextPage }
     nodes {
       ... on PullRequest {
         number title url createdAt mergedAt closedAt
@@ -169,6 +173,8 @@ type GqlInsightsPRNode = {
 
 type GqlInsightsPRsResp = {
   search: {
+    issueCount: number;
+    pageInfo: { endCursor: string | null; hasNextPage: boolean };
     nodes: Array<GqlInsightsPRNode | Record<string, never>>;
   };
 };
@@ -227,27 +233,30 @@ export async function fetchInsightsPRs(
   let hasMore = false;
 
   if (range.days === 0) {
-    // For ALL period, paginate up to 1000 PRs
-    for (let page = 0; page < MAX_PAGES; page++) {
-      const batch = await fetchInsightsPRPageWithViewer(token, createdQ, viewerLogin);
-      for (const pr of batch) {
+    // For ALL period, paginate the created search only (up to MAX_PAGES * 100 PRs)
+    let cursor: string | null = null;
+    let pageHasNext = true;
+    let pageCount = 0;
+    while (pageHasNext && pageCount < MAX_PAGES) {
+      const result = await fetchInsightsPRPage(token, createdQ, viewerLogin, cursor);
+      for (const pr of result.prs) {
         prMap.set(pr.number, pr);
       }
-      if (batch.length < 100) break;
-      if (page === MAX_PAGES - 1 && batch.length === 100) {
-        hasMore = true;
-      }
+      cursor = result.pageInfo.endCursor;
+      pageHasNext = result.pageInfo.hasNextPage;
+      pageCount++;
     }
+    hasMore = pageHasNext;
   } else {
-    // For bounded periods, run 2 searches and union by PR number
-    const [createdBatch, mergedBatch] = await Promise.all([
-      fetchInsightsPRPageWithViewer(token, createdQ, viewerLogin),
-      fetchInsightsPRPageWithViewer(token, mergedQ, viewerLogin),
+    // For bounded periods, run 2 searches (first 100 each) and union by PR number
+    const [createdResult, mergedResult] = await Promise.all([
+      fetchInsightsPRPage(token, createdQ, viewerLogin, null),
+      fetchInsightsPRPage(token, mergedQ, viewerLogin, null),
     ]);
-    for (const pr of [...createdBatch, ...mergedBatch]) {
+    for (const pr of [...createdResult.prs, ...mergedResult.prs]) {
       prMap.set(pr.number, pr);
     }
-    if (createdBatch.length === 100 || mergedBatch.length === 100) {
+    if (createdResult.pageInfo.hasNextPage || mergedResult.pageInfo.hasNextPage) {
       hasMore = true;
     }
   }
@@ -255,15 +264,20 @@ export async function fetchInsightsPRs(
   return { prs: Array.from(prMap.values()), hasMore };
 }
 
-async function fetchInsightsPRPageWithViewer(
+async function fetchInsightsPRPage(
   token: string,
   searchQ: string,
   viewerLogin: string,
-): Promise<InsightsPRSummary[]> {
-  const data = await gqlSearch<GqlInsightsPRsResp>(token, INSIGHTS_PRS_QUERY, { searchQ });
-  return data.search.nodes
+  cursor: string | null,
+): Promise<{ prs: InsightsPRSummary[]; pageInfo: { endCursor: string | null; hasNextPage: boolean } }> {
+  const data = await gqlSearch<GqlInsightsPRsResp>(token, INSIGHTS_PRS_QUERY, {
+    searchQ,
+    cursor: cursor ?? undefined,
+  });
+  const prs = data.search.nodes
     .filter((n): n is GqlInsightsPRNode => "number" in n)
     .map((n) => parseInsightsPRNode(n, viewerLogin));
+  return { prs, pageInfo: data.search.pageInfo };
 }
 
 // ── Repo stats ────────────────────────────────────────────────────────────────
@@ -341,7 +355,7 @@ export interface Contributor {
 type RawContributor = {
   author: { login: string };
   total: number;
-  weeks: Array<{ w: number; a: number; d: number; c: number }>;
+  weeks: ContributorWeek[];
 };
 
 export async function fetchContributors(
@@ -351,11 +365,7 @@ export async function fetchContributors(
 ): Promise<Contributor[]> {
   const url = `${REST_BASE}/repos/${owner}/${name}/stats/contributors`;
   const raw = await restGetWithRetry<RawContributor[]>(url, token);
-  return raw.map((c) => ({
-    login: c.author.login,
-    total: c.total,
-    weeks: c.weeks.map((w) => ({ w: w.w, a: w.a, d: w.d, c: w.c })),
-  }));
+  return raw.map((c) => ({ login: c.author.login, total: c.total, weeks: c.weeks }));
 }
 
 // ── Commit activity (REST) ────────────────────────────────────────────────────
@@ -366,19 +376,12 @@ export interface CommitWeek {
   total: number;
 }
 
-type RawCommitWeek = {
-  week: number;
-  days: number[];
-  total: number;
-};
-
 export async function fetchCommitActivity(
   token: string,
   owner: string,
   name: string,
 ): Promise<CommitWeek[]> {
   const url = `${REST_BASE}/repos/${owner}/${name}/stats/commit_activity`;
-  const raw = await restGetWithRetry<RawCommitWeek[]>(url, token);
-  return raw.map((w) => ({ week: w.week, days: w.days, total: w.total }));
+  return restGetWithRetry<CommitWeek[]>(url, token);
 }
 
