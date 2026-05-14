@@ -37,19 +37,19 @@ function computeThroughputBuckets(
   const useWeekly = period !== "7d" && period !== "30d";
 
   if (useWeekly) {
-    // Weekly buckets. For ALL period cap at 26 weeks.
-    const since = range.since;
-    const weekStart = startOfWeek(since);
+    // Weekly buckets. For ALL period show LAST 26 weeks (not first 26 since
+    // repo creation, which would miss recent activity for old repos).
+    const maxWeeks = period === "all" ? 26 : Math.ceil(range.days / 7);
     const today = range.until;
-    const maxWeeks = period === "all" ? 26 : 999;
+    const todayWeek = startOfWeek(today);
 
     const bucketMap = new Map<string, Bucket>();
-    let cursor = weekStart;
-    let count = 0;
-    while (cursor <= today && count < maxWeeks) {
+    let cursor = addDays(todayWeek, -7 * (maxWeeks - 1));
+    const since = period === "all" ? cursor : range.since;
+    if (cursor < since) cursor = startOfWeek(since);
+    while (cursor <= today) {
       bucketMap.set(cursor, { date: cursor, opened: 0, merged: 0 });
       cursor = addDays(cursor, 7);
-      count++;
     }
 
     for (const pr of prs) {

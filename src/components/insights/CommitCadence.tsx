@@ -55,35 +55,66 @@ export function CommitCadence({ data }: Props) {
   const peakDow = byDow.indexOf(Math.max(...byDow));
   const peakDay = DAY_NAMES[peakDow] ?? "—";
 
+  const yLabels = [peak, Math.round(peak * 0.75), Math.round(peak * 0.5), Math.round(peak * 0.25), 0];
+
   return (
     <div className="card">
       <div className="card-label" style={{ marginBottom: "16px" }}>
         COMMIT CADENCE · LAST 30D
       </div>
-      <svg
-        viewBox={`0 0 ${SVG_W} ${SVG_H}`}
-        preserveAspectRatio="none"
-        style={{ width: "100%", height: SVG_H }}
-      >
-        <g fill="var(--yellow)">
-          {days.map((day, i) => {
-            const barH = (day.count / peak) * SVG_H;
-            const x = i * STEP;
-            const y = SVG_H - barH;
-            return (
-              <rect
-                key={i}
-                x={x}
-                y={y}
-                width={BAR_W}
-                height={barH}
-                opacity={day.isWeekend ? 0.4 : 1}
-              />
-            );
-          })}
-        </g>
-        <line x1="0" y1={SVG_H} x2={SVG_W} y2={SVG_H} stroke="var(--border)" strokeWidth="1" />
-      </svg>
+      <div style={{ position: "relative", paddingLeft: 32 }}>
+        <div
+          style={{
+            position: "absolute",
+            left: 0,
+            top: 0,
+            bottom: 0,
+            width: 28,
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "space-between",
+            fontSize: 10,
+            color: "var(--muted)",
+            fontFamily: '"JetBrains Mono", monospace',
+            fontVariantNumeric: "tabular-nums",
+            textAlign: "right",
+            paddingRight: 6,
+          }}
+        >
+          {yLabels.map((v, i) => (
+            <span key={i}>{v}</span>
+          ))}
+        </div>
+        <svg
+          viewBox={`0 0 ${SVG_W} ${SVG_H}`}
+          preserveAspectRatio="none"
+          style={{ width: "100%", height: SVG_H, display: "block" }}
+        >
+          <g stroke="var(--border)" strokeWidth="1" strokeDasharray="2 4">
+            <line x1="0" y1={SVG_H * 0.25} x2={SVG_W} y2={SVG_H * 0.25} />
+            <line x1="0" y1={SVG_H * 0.5} x2={SVG_W} y2={SVG_H * 0.5} />
+            <line x1="0" y1={SVG_H * 0.75} x2={SVG_W} y2={SVG_H * 0.75} />
+          </g>
+          <g fill="var(--yellow)">
+            {days.map((day, i) => {
+              const barH = (day.count / peak) * SVG_H;
+              const x = i * STEP;
+              const y = SVG_H - barH;
+              return (
+                <rect
+                  key={i}
+                  x={x}
+                  y={y}
+                  width={BAR_W}
+                  height={barH}
+                  opacity={day.isWeekend ? 0.4 : 1}
+                />
+              );
+            })}
+          </g>
+          <line x1="0" y1={SVG_H} x2={SVG_W} y2={SVG_H} stroke="var(--border)" strokeWidth="1" />
+        </svg>
+      </div>
       <div
         style={{
           display: "flex",
@@ -93,6 +124,7 @@ export function CommitCadence({ data }: Props) {
           marginTop: "8px",
           letterSpacing: "0.08em",
           textTransform: "uppercase",
+          paddingLeft: 32,
         }}
       >
         <span>30D AGO</span>

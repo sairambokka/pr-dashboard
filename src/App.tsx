@@ -1,20 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
-  fetchAwaitingReview,
   fetchMyPRs,
-  fetchTurnaround,
   isCiFailed,
-  type AwaitingReviewPR,
   type PRSummary,
 } from "./lib/github";
 import {
-  BLOCKING_THRESHOLD_DAYS,
-  OLDEST_DANGER_DAYS,
   POLL_HIDDEN_MS,
   POLL_INSIGHTS_MS,
   POLL_LINEAR_MS,
-  POLL_TURNAROUND_MS,
 } from "./lib/constants";
 import type { NextAction } from "./lib/types";
 import {
@@ -155,7 +149,7 @@ export default function App() {
   const [seen, setSeen] = useState<SeenMap>(loadSeen);
   const [showSettings, setShowSettings] = useState(false);
   const [showCheatsheet, setShowCheatsheet] = useState(false);
-  const [scope, setScope] = useState<"authored" | "awaiting">("authored");
+  const [scope, setScope] = useState<"authored" | "all">("authored");
   const seenRef = useRef(seen);
   useEffect(() => {
     seenRef.current = seen;
@@ -174,36 +168,9 @@ export default function App() {
   const viewer = data?.viewer ?? { login: "", name: null, avatarUrl: "" };
   const login = viewer.login;
   const prs = data?.prs ?? [];
-
-  const awaitingQuery = useQuery({
-    queryKey: ["awaiting", settings.owner, settings.repo, viewer.login],
-    queryFn: () =>
-      fetchAwaitingReview(settings.token, settings.owner, settings.repo, viewer.login),
-    refetchInterval: settings.intervalSec * 1000,
-    enabled: configured && Boolean(viewer.login) && (route === "prs" || route === "insights"),
-  });
-
-  const turnaroundQuery = useQuery({
-    queryKey: ["turnaround", settings.owner, settings.repo],
-    queryFn: () => fetchTurnaround(settings.token, settings.owner, settings.repo),
-    refetchInterval: POLL_TURNAROUND_MS,
-    enabled: configured && Boolean(viewer.login) && (route === "prs" || route === "insights"),
-  });
-
-  const awaitingPRs: AwaitingReviewPR[] = awaitingQuery.data ?? [];
+  const allPrs = data?.allPrs ?? [];
   const authoredCount = prs.length;
-  const awaitingCount = awaitingQuery.data?.length ?? 0;
-
-  const awaitingSummary = useMemo(() => {
-    const pendingCount = awaitingPRs.length;
-    const blocking3Count = awaitingPRs.filter(
-      (p) => !p.isTeamRequest && p.blockingDays !== null && p.blockingDays >= BLOCKING_THRESHOLD_DAYS,
-    ).length;
-    const nonTeamPRs = awaitingPRs.filter((p) => !p.isTeamRequest && p.blockingDays !== null);
-    const oldestDays =
-      nonTeamPRs.length > 0 ? Math.max(...nonTeamPRs.map((p) => p.blockingDays!)) : null;
-    return { pendingCount, blocking3Count, oldestDays };
-  }, [awaitingPRs]);
+  const allCount = allPrs.length;
 
   useEffect(() => {
     void ensureNotifyPermission();
@@ -315,7 +282,6 @@ export default function App() {
 
   const nextAction = useMemo((): NextAction | null => {
     const authored = data?.prs ?? [];
-    const awaiting = awaitingQuery.data ?? [];
 
     // Priority 1: PR I authored, CHANGES_REQUESTED + unread comment
     for (const pr of authored) {
@@ -331,15 +297,7 @@ export default function App() {
       }
     }
 
-    // Priority 3: PR awaiting my review, oldest blocking
-    if (awaiting.length > 0) {
-      const oldest = awaiting.reduce((a, b) =>
-        (a.blockingDays ?? 0) > (b.blockingDays ?? 0) ? a : b
-      );
-      return { prNumber: oldest.number, prTitle: oldest.title, prUrl: oldest.url, label: "AWAITING YOUR REVIEW", ageDescription: ageDescription(oldest.updatedAt) };
-    }
-
-    // Priority 4: PR I authored with unread comments
+    // Priority 3: PR I authored with unread comments
     for (const pr of authored) {
       if ((unreadByPr.map[pr.number]?.count ?? 0) > 0) {
         return { prNumber: pr.number, prTitle: pr.title, prUrl: pr.url, label: "NEW COMMENTS", ageDescription: ageDescription(pr.updatedAt) };
@@ -347,7 +305,7 @@ export default function App() {
     }
 
     return null;
-  }, [data?.prs, awaitingQuery.data, unreadByPr.map]);
+  }, [data?.prs, unreadByPr.map]);
 
   const markRead = useCallback((pr: PRSummary) => {
     const entry: SeenEntry = {
@@ -391,9 +349,9 @@ export default function App() {
 
   const errorMessage = error instanceof Error ? error.message : error ? String(error) : null;
   const lastFetch = dataUpdatedAt > 0 ? dataUpdatedAt : null;
-  const tabPrsCount = authoredCount + awaitingCount;
+  const tabPrsCount = authoredCount + allCount;
 
-  const anyError = Boolean(error ?? awaitingQuery.error ?? turnaroundQuery.error);
+  const anyError = Boolean(error);
   const liveState: "live" | "paused" | "error" = !configured
     ? "paused"
     : !isVisible
@@ -525,10 +483,10 @@ export default function App() {
                 </button>
                 <button
                   className="scope-btn"
-                  aria-pressed={scope === "awaiting"}
-                  onClick={() => setScope("awaiting")}
+                  aria-pressed={scope === "all"}
+                  onClick={() => setScope("all")}
                 >
-                  Awaiting your review <span className="scope-count">{awaitingCount}</span>
+                  All open <span className="scope-count">{allCount}</span>
                 </button>
               </div>
 
@@ -600,85 +558,18 @@ export default function App() {
                 </div>
               )}
 
-              {scope === "awaiting" && awaitingQuery.data && (
-                <div className="summary-bar">
-                  <div className="summary-cell">
-                    <div className="summary-label">PENDING</div>
-                    <div
-                      className={`summary-value mono ${awaitingSummary.pendingCount > 0 ? "accent" : ""}`}
-                    >
-                      {String(awaitingSummary.pendingCount).padStart(2, "0")}
-                    </div>
-                  </div>
-                  <div className="summary-cell">
-                    <div className="summary-label">{`BLOCKING ≥ ${BLOCKING_THRESHOLD_DAYS}D`}</div>
-                    <div
-                      className={`summary-value mono ${awaitingSummary.blocking3Count > 0 ? "danger" : ""}`}
-                    >
-                      {String(awaitingSummary.blocking3Count).padStart(2, "0")}
-                    </div>
-                  </div>
-                  <div className="summary-cell">
-                    <div className="summary-label">AVG TURNAROUND</div>
-                    <div className="summary-value mono">
-                      {turnaroundQuery.data == null
-                        ? "—"
-                        : turnaroundQuery.data.avgDays === null
-                          ? "—"
-                          : turnaroundQuery.data.avgDays < 10
-                            ? `${turnaroundQuery.data.avgDays.toFixed(1)}`
-                            : `${Math.round(turnaroundQuery.data.avgDays)}`}
-                      {turnaroundQuery.data?.avgDays != null && (
-                        <span className="summary-unit">D</span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="summary-cell">
-                    <div className="summary-label">OLDEST</div>
-                    <div
-                      className={`summary-value mono ${awaitingSummary.oldestDays !== null && awaitingSummary.oldestDays >= OLDEST_DANGER_DAYS ? "danger" : ""}`}
-                    >
-                      {awaitingSummary.oldestDays !== null ? (
-                        <>
-                          {awaitingSummary.oldestDays}
-                          <span className="summary-unit">D</span>
-                        </>
-                      ) : (
-                        "—"
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {scope === "awaiting" && (
+              {scope === "all" && (
                 <div className="pr-panel">
                   <ul className="pr-list">
-                    {awaitingQuery.isFetching && !awaitingQuery.data && (
-                      <li className="pr-row pr-row-loading">
-                        <span>Loading…</span>
-                      </li>
-                    )}
-                    {awaitingPRs.map((pr) => {
-                      const isBlocking =
-                        !pr.isTeamRequest &&
-                        pr.blockingDays !== null &&
-                        pr.blockingDays >= BLOCKING_THRESHOLD_DAYS;
+                    {allPrs.map((pr) => {
                       const ageRaw = ageDescription(pr.updatedAt).replace(" AGO", "");
-                      const days = pr.blockingDays;
-                      const ageClass =
-                        days !== null && days >= OLDEST_DANGER_DAYS
-                          ? "blocking-old"
-                          : days !== null && days >= BLOCKING_THRESHOLD_DAYS
-                            ? "blocking-warn"
-                            : "";
                       return (
                         <a
                           key={pr.number}
                           href={pr.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className={`row pr-row${isBlocking ? " is-blocking" : ""}`}
+                          className="row pr-row"
                         >
                           <span className="pr-num-cell-row">
                             <span className="pr-num mono">{pr.number}</span>
@@ -690,11 +581,7 @@ export default function App() {
                             <span className="pr-title-row">
                               <span className="pr-title">{pr.title}</span>
                               {pr.isDraft && <span className="label label-muted">Draft</span>}
-                              {isBlocking && (
-                                <span className="tag tag-blocking">
-                                  ◆ BLOCKING {days}D
-                                </span>
-                              )}
+                              {reviewBadge(pr)}
                             </span>
                             <span className="pr-meta">
                               <span>{pr.headRefName}</span>
@@ -705,15 +592,15 @@ export default function App() {
                             <CommentIcon />
                             {String(pr.totalCommentCount).padStart(2, "0")}
                           </span>
-                          <span className={`age-col mono ${ageClass}`}>{ageRaw}</span>
+                          <span className="age-col mono">{ageRaw}</span>
                           <span />
                         </a>
                       );
                     })}
                   </ul>
 
-                  {!awaitingQuery.isFetching && awaitingPRs.length === 0 && (
-                    <div className="pr-empty">Nothing awaiting your review.</div>
+                  {allPrs.length === 0 && !isFetching && (
+                    <div className="pr-empty">No open PRs in repo.</div>
                   )}
                 </div>
               )}
@@ -742,17 +629,6 @@ export default function App() {
             viewerAvatarUrl={data.viewer.avatarUrl}
             repoCreatedAt={data.repo.createdAt}
             intervalMs={POLL_INSIGHTS_MS}
-            reviewQueueCount={awaitingQuery.data?.length}
-            reviewQueueOldestDays={
-              awaitingPRs.filter((p) => !p.isTeamRequest && p.blockingDays !== null).length > 0
-                ? Math.max(
-                    ...awaitingPRs
-                      .filter((p) => !p.isTeamRequest && p.blockingDays !== null)
-                      .map((p) => p.blockingDays!),
-                    0,
-                  )
-                : undefined
-            }
             nextAction={nextAction}
           />
         </main>

@@ -104,7 +104,6 @@ interface ContribPanelProps {
   totalCommits: number;
   totalAdded: number;
   totalRemoved: number;
-  myRank: number | null;
   chartWeeks: Array<{ w: number; c: number }>;
 }
 
@@ -114,7 +113,6 @@ function ContribPanel({
   totalCommits,
   totalAdded,
   totalRemoved,
-  myRank,
   chartWeeks,
 }: ContribPanelProps) {
   const maxCommits = Math.max(1, ...chartWeeks.map((w) => w.c));
@@ -172,12 +170,6 @@ function ContribPanel({
             </div>
           </div>
         </div>
-        {myRank !== null && (
-          <div className="contrib-rank">
-            <div className="rank-label">REPO RANK</div>
-            <div className="rank-value mono">#{myRank}</div>
-          </div>
-        )}
       </div>
 
       <div className="contrib-chart-wrap">
@@ -341,10 +333,6 @@ export function InsightsPanel({
   // ── Contributor stats ───────────────────────────────────────────────────────
 
   const myContributor = contributors?.find((c) => c.login === viewerLogin);
-  const allRanked = (contributors ?? []).slice().sort((a, b) => b.total - a.total);
-  const myRank = myContributor
-    ? allRanked.findIndex((c) => c.login === viewerLogin) + 1
-    : null;
 
   const sinceMs = range.since ? new Date(range.since).getTime() / 1000 : 0;
   const windowedWeeks = myContributor?.weeks.filter((w) => w.w >= sinceMs) ?? [];
@@ -499,7 +487,6 @@ export function InsightsPanel({
         totalCommits={totalCommits}
         totalAdded={totalAdded}
         totalRemoved={totalRemoved}
-        myRank={myRank}
         chartWeeks={chartWeeks}
       />
 

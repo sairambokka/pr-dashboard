@@ -5,7 +5,7 @@ query($owner: String!, $name: String!) {
   viewer { login name avatarUrl(size: 88) }
   repository(owner: $owner, name: $name) {
     createdAt
-    pullRequests(states: OPEN, first: 50, orderBy: {field: UPDATED_AT, direction: DESC}) {
+    pullRequests(states: OPEN, first: 100, orderBy: {field: UPDATED_AT, direction: DESC}) {
       nodes {
         number
         title
@@ -272,6 +272,7 @@ export async function fetchMyPRs(
   viewer: { login: string; name: string | null; avatarUrl: string };
   repo: { createdAt: string };
   prs: PRSummary[];
+  allPrs: PRSummary[];
 }> {
   const res = await fetch(GQL_URL, {
     method: "POST",
@@ -292,11 +293,16 @@ export async function fetchMyPRs(
 
   const viewer = json.data.viewer;
   const login = viewer.login;
-  const prs = json.data.repository.pullRequests.nodes
-    .filter((p) => p.author?.login === login)
-    .map((p) => parsePullRequestNode(p, login));
+  const nodes = json.data.repository.pullRequests.nodes;
+  const allPrs: PRSummary[] = [];
+  const prs: PRSummary[] = [];
+  for (const n of nodes) {
+    const parsed = parsePullRequestNode(n, login);
+    allPrs.push(parsed);
+    if (n.author?.login === login) prs.push(parsed);
+  }
 
-  return { viewer, repo: { createdAt: json.data.repository.createdAt }, prs };
+  return { viewer, repo: { createdAt: json.data.repository.createdAt }, prs, allPrs };
 }
 
 const TURNAROUND_QUERY = `
