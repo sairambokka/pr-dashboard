@@ -940,6 +940,132 @@ code {
   font-variant-numeric: tabular-nums;
 }
 
+/* ── Period toggle ───────────────────────────────────────────── */
+
+.period-toggle {
+  display: flex;
+  gap: 0;
+  border: 1px solid var(--border);
+  width: fit-content;
+  margin-bottom: 32px;
+}
+
+.period-btn {
+  padding: 6px 14px;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  background: transparent;
+  border: none;
+  border-right: 1px solid var(--border);
+  cursor: pointer;
+  font-family: inherit;
+  transition:
+    color 80ms,
+    background 80ms;
+}
+
+.period-btn:last-child {
+  border-right: none;
+}
+
+.period-btn:hover {
+  color: var(--text);
+}
+
+.period-btn[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--bg);
+  font-weight: 600;
+}
+
+/* ── Stat cards grid ─────────────────────────────────────────── */
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  margin-bottom: 32px;
+}
+
+.card {
+  border: 1px solid var(--border);
+  background: var(--bg);
+  padding: 24px;
+  position: relative;
+  overflow: hidden;
+}
+
+.card-label {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+
+.card-value {
+  font-size: 36px;
+  font-weight: 300;
+  color: var(--text);
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.card-value.accent {
+  color: var(--accent);
+}
+
+.card-unit {
+  font-size: 12px;
+  color: var(--muted);
+  margin-left: 6px;
+}
+
+.card-delta {
+  margin-top: 10px;
+  font-size: 11px;
+  color: var(--green);
+  letter-spacing: 0.04em;
+}
+
+.card-delta.down {
+  color: var(--red);
+}
+
+.card-delta::before {
+  content: "▲ ";
+}
+
+.card-delta.down::before {
+  content: "▼ ";
+}
+
+.card-foot {
+  font-size: 10px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-top: 6px;
+}
+
+/* ── Banner ──────────────────────────────────────────────────── */
+
+.banner {
+  padding: 10px 16px;
+  border-radius: var(--radius);
+  font-size: 12px;
+  margin-bottom: 16px;
+  letter-spacing: 0.02em;
+}
+
+.banner-info {
+  background: rgba(47, 129, 247, 0.1);
+  border: 1px solid rgba(47, 129, 247, 0.4);
+  color: var(--accent);
+}
+
 /* ── Cadence sparkline ───────────────────────────────────────── */
 
 .cadence {
