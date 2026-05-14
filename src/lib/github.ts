@@ -76,6 +76,8 @@ export interface PRSummary {
   reviewRequestedTimes: Array<{ createdAt: string; reviewerLogin: string | null; teamSlug: string | null }>;
 }
 
+type GqlRequestedReviewer = { login: string } | { name: string; slug: string } | null;
+
 interface GqlResp {
   data?: {
     viewer: { login: string; name: string | null; avatarUrl: string };
@@ -107,13 +109,13 @@ interface GqlResp {
           };
           reviewRequests: {
             nodes: Array<{
-              requestedReviewer: { login?: string; name?: string; slug?: string } | null;
+              requestedReviewer: GqlRequestedReviewer;
             }>;
           };
           timelineItems: {
             nodes: Array<{
               createdAt?: string;
-              requestedReviewer?: { login?: string; name?: string; slug?: string } | null;
+              requestedReviewer?: GqlRequestedReviewer;
             }>;
           };
         }>;
@@ -191,17 +193,18 @@ export async function fetchMyPRs(
         .map((r) => r.requestedReviewer)
         .filter((r): r is NonNullable<typeof r> => r != null)
         .map((r) =>
-          r.login
+          "login" in r
             ? { kind: "user" as const, name: r.login }
-            : { kind: "team" as const, name: r.name ?? r.slug ?? "" },
+            : { kind: "team" as const, name: r.name },
         );
 
+      // inline fragment: nodes outside REVIEW_REQUESTED_EVENT come back as empty objects
       const reviewRequestedTimes = p.timelineItems.nodes
-        .filter((n) => n.createdAt != null)
+        .filter((n): n is Required<typeof n> => "createdAt" in n)
         .map((n) => ({
-          createdAt: n.createdAt as string,
-          reviewerLogin: n.requestedReviewer?.login ?? null,
-          teamSlug: n.requestedReviewer?.slug ?? null,
+          createdAt: n.createdAt,
+          reviewerLogin: n.requestedReviewer != null && "login" in n.requestedReviewer ? n.requestedReviewer.login : null,
+          teamSlug: n.requestedReviewer != null && "slug" in n.requestedReviewer ? n.requestedReviewer.slug : null,
         }));
 
       return {
