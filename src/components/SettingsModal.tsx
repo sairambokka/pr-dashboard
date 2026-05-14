@@ -16,6 +16,7 @@ interface Props {
 export function SettingsModal({ settings, onSave, onClose }: Props) {
   const [draft, setDraft] = useState<Settings>(settings);
   const [showToken, setShowToken] = useState(false);
+  const [showLinearKey, setShowLinearKey] = useState(false);
   const [testResult, setTestResult] = useState<TestResult | null>(null);
   const patRef = useRef<HTMLInputElement>(null);
 
@@ -159,6 +160,42 @@ export function SettingsModal({ settings, onSave, onClose }: Props) {
                 </span>
               )}
             </div>
+          </section>
+
+          <section className="settings-group">
+            <h3>Linear</h3>
+            <label>
+              API Key
+              <div className="pat-row">
+                <input
+                  type={showLinearKey ? "text" : "password"}
+                  value={draft.linearApiKey ?? ""}
+                  onChange={(e) => setDraft((d) => ({ ...d, linearApiKey: e.target.value }))}
+                  autoComplete="off"
+                  placeholder="lin_api_..."
+                />
+                <button
+                  type="button"
+                  className="btn btn-ghost pat-toggle"
+                  onClick={() => setShowLinearKey((v) => !v)}
+                  aria-label={showLinearKey ? "Hide Linear API key" : "Show Linear API key"}
+                >
+                  {showLinearKey ? "Hide" : "Show"}
+                </button>
+              </div>
+              <small>
+                Get your key at https://linear.app/settings/api. Stored only in your browser.
+              </small>
+            </label>
+            <label>
+              Team ID (optional)
+              <input
+                type="text"
+                value={draft.linearTeamId ?? ""}
+                onChange={(e) => setDraft((d) => ({ ...d, linearTeamId: e.target.value }))}
+                placeholder="auto-detect from key, optional override"
+              />
+            </label>
           </section>
 
           <section className="settings-group">

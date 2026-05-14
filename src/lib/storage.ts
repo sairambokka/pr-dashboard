@@ -3,6 +3,8 @@ export interface Settings {
   owner: string;
   repo: string;
   intervalSec: number;
+  linearApiKey?: string;
+  linearTeamId?: string;
 }
 
 const KEY = "pr-dashboard.settings";
