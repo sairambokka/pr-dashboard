@@ -1614,6 +1614,25 @@ img.avatar {
   box-shadow: 0 0 0 1px rgba(255, 183, 0, 0.3);
 }
 
+.settings-group label.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 0;
+}
+
+.settings-group label.checkbox-row input[type="checkbox"] {
+  width: auto;
+  margin: 0;
+  flex-shrink: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.settings-group label.checkbox-row span {
+  flex: 1;
+}
+
 .settings-group small {
   display: block;
   color: var(--muted);

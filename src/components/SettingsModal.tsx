@@ -133,7 +133,7 @@ export function SettingsModal({ settings, onSave, onClose }: Props) {
                 type="text"
                 value={draft.owner}
                 onChange={(e) => handleOwnerChange(e.target.value)}
-                placeholder="corca-ai"
+                placeholder="e.g. octocat"
               />
             </label>
             <label>
@@ -142,7 +142,7 @@ export function SettingsModal({ settings, onSave, onClose }: Props) {
                 type="text"
                 value={draft.repo}
                 onChange={(e) => handleRepoChange(e.target.value)}
-                placeholder="corca-app"
+                placeholder="e.g. hello-world"
               />
             </label>
             <div className="test-connection-row">
@@ -200,13 +200,13 @@ export function SettingsModal({ settings, onSave, onClose }: Props) {
 
           <section className="settings-group">
             <h3>Activity</h3>
-            <label>
+            <label className="checkbox-row">
               <input
                 type="checkbox"
                 checked={draft.hideBots ?? true}
                 onChange={(e) => setDraft((d) => ({ ...d, hideBots: e.target.checked }))}
               />
-              Hide bot activity (Dependabot, github-actions, etc.)
+              <span>Hide bot activity (Dependabot, github-actions, etc.)</span>
             </label>
           </section>
 
