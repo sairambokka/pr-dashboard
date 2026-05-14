@@ -53,26 +53,6 @@ function getStatusBadge(state: LinearWorkflowState): { className: string; label:
   }
 }
 
-type Mismatch = "none" | "error" | "info";
-
-function detectMismatch(issue: LinearIssue, pr: PRSummary): Mismatch {
-  const stateType = issue.state.type;
-  const stateName = issue.state.name.toLowerCase();
-
-  if (stateType === "canceled") return "error";
-  if (stateType === "completed") return "error";
-  if (stateName.includes("review") && stateType === "started" && pr.effectiveReview === "CHANGES_REQUESTED") {
-    return "error";
-  }
-  if (stateName.includes("review") && stateType === "started" && pr.isDraft) {
-    return "info";
-  }
-  if (stateName.includes("blocked") && !pr.isDraft) {
-    return "info";
-  }
-  return "none";
-}
-
 function statusPriority(state: LinearWorkflowState): number {
   const nameLower = state.name.toLowerCase();
   if (nameLower.includes("blocked")) return 4;
@@ -239,7 +219,6 @@ export function LinearPanel({ apiKey, teamId, authoredPRs, intervalMs }: Props) 
         <ul className="pr-list">
           <li className="row linear-row col-header">
             <span className="col-label">TICKET</span>
-            <span></span>
             <span className="col-label">TITLE</span>
             <span className="col-label">STATUS</span>
             <span></span>
@@ -251,12 +230,8 @@ export function LinearPanel({ apiKey, teamId, authoredPRs, intervalMs }: Props) 
             const issue = row.issue!;
             const pr = row.pr!;
             const badge = getStatusBadge(issue.state);
-            const mismatch = detectMismatch(issue, pr);
             return (
-              <li
-                key={issue.identifier}
-                className={`row linear-row${mismatch === "error" ? " mismatch" : ""}`}
-              >
+              <li key={issue.identifier} className="row linear-row">
                 <a
                   className="ticket-id mono"
                   href={issue.url}
@@ -265,12 +240,9 @@ export function LinearPanel({ apiKey, teamId, authoredPRs, intervalMs }: Props) 
                 >
                   {issue.identifier}
                 </a>
+                <span className="item-title">{issue.title}</span>
                 <span>
                   <span className={badge.className}>{badge.label}</span>
-                </span>
-                <span className="item-title">{issue.title}</span>
-                <span className="mismatch-hint">
-                  {mismatch === "error" ? "▼ MISMATCH" : mismatch === "info" ? "◇ INFO" : ""}
                 </span>
                 <span className="link-arrow">→</span>
                 <a
@@ -300,11 +272,10 @@ export function LinearPanel({ apiKey, teamId, authoredPRs, intervalMs }: Props) 
                 >
                   {issue.identifier}
                 </a>
+                <span className="item-title muted">{issue.title}</span>
                 <span>
                   <span className={badge.className}>{badge.label}</span>
                 </span>
-                <span className="item-title muted">{issue.title}</span>
-                <span></span>
                 <span className="link-arrow">—</span>
                 <span className="t-dim">—</span>
                 <span className="t-dim">—</span>
