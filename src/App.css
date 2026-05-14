@@ -879,3 +879,9 @@ code {
 .summary-value.danger {
   color: var(--red);
 }
+
+.summary-unit {
+  font-size: 11px;
+  color: var(--muted);
+  margin-left: 4px;
+}

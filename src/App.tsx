@@ -16,6 +16,9 @@ import { useRoute } from "./lib/router";
 import { SettingsModal } from "./components/SettingsModal";
 import "./App.css";
 
+const BLOCKING_THRESHOLD_DAYS = 3;
+const OLDEST_DANGER_DAYS = 5;
+
 function relativeTime(iso: string): string {
   const diffMs = Date.now() - new Date(iso).getTime();
   const m = Math.floor(diffMs / 60000);
@@ -155,7 +158,7 @@ export default function App() {
   const awaitingSummary = useMemo(() => {
     const pendingCount = awaitingPRs.length;
     const blocking3Count = awaitingPRs.filter(
-      (p) => !p.isTeamRequest && (p.blockingDays ?? 0) >= 3,
+      (p) => !p.isTeamRequest && p.blockingDays !== null && p.blockingDays >= BLOCKING_THRESHOLD_DAYS,
     ).length;
     const nonTeamPRs = awaitingPRs.filter((p) => !p.isTeamRequest && p.blockingDays !== null);
     const oldestDays =
@@ -522,7 +525,7 @@ export default function App() {
                     </div>
                   </div>
                   <div className="summary-cell">
-                    <div className="summary-label">BLOCKING ≥ 3D</div>
+                    <div className="summary-label">{`BLOCKING ≥ ${BLOCKING_THRESHOLD_DAYS}D`}</div>
                     <div
                       className={`summary-value mono ${awaitingSummary.blocking3Count > 0 ? "danger" : ""}`}
                     >
@@ -531,19 +534,18 @@ export default function App() {
                   </div>
                   <div className="summary-cell">
                     <div className="summary-label">AVG TURNAROUND</div>
+                    {/* TODO: P1.4 wires the turnaround query */}
                     <div className="summary-value mono">—</div>
                   </div>
                   <div className="summary-cell">
                     <div className="summary-label">OLDEST</div>
                     <div
-                      className={`summary-value mono ${awaitingSummary.oldestDays !== null && awaitingSummary.oldestDays >= 5 ? "danger" : ""}`}
+                      className={`summary-value mono ${awaitingSummary.oldestDays !== null && awaitingSummary.oldestDays >= OLDEST_DANGER_DAYS ? "danger" : ""}`}
                     >
                       {awaitingSummary.oldestDays !== null ? (
                         <>
                           {awaitingSummary.oldestDays}
-                          <span style={{ fontSize: "11px", color: "var(--muted)", marginLeft: "4px" }}>
-                            D
-                          </span>
+                          <span className="summary-unit">D</span>
                         </>
                       ) : (
                         "—"
@@ -563,7 +565,7 @@ export default function App() {
                     )}
                     {awaitingPRs.map((pr) => {
                       const isBlocking =
-                        !pr.isTeamRequest && pr.blockingDays !== null && pr.blockingDays >= 3;
+                        !pr.isTeamRequest && pr.blockingDays !== null && pr.blockingDays >= BLOCKING_THRESHOLD_DAYS;
                       const created = relativeTime(pr.updatedAt);
                       return (
                         <li
