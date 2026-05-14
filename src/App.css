@@ -1441,3 +1441,59 @@ img.avatar {
   text-align: right;
   color: var(--muted);
 }
+
+/* ── Next Action callout ─────────────────────────────────────────────────── */
+
+.pr-of-day {
+  display: block;
+  padding: 14px 16px;
+  border: 1px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  margin-bottom: 20px;
+  text-decoration: none;
+  color: var(--text);
+  transition: background 0.15s;
+}
+
+.pr-of-day:hover {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+
+.pr-of-day-empty {
+  border-color: var(--border);
+  background: transparent;
+  opacity: 0.6;
+  cursor: default;
+}
+
+.pr-of-day-empty:hover {
+  background: transparent;
+}
+
+.pod-label {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+  margin-bottom: 4px;
+  font-weight: 600;
+}
+
+.pr-of-day-empty .pod-label {
+  color: var(--muted);
+}
+
+.pod-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pod-meta {
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 0.04em;
+}

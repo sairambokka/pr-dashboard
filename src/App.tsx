@@ -21,11 +21,28 @@ import { ensureNotifyPermission, notify } from "./lib/notify";
 import { useRoute } from "./lib/router";
 import { useIsVisible } from "./lib/useVisibility";
 import { ActivityPanel } from "./components/ActivityPanel";
+import { InsightsPanel } from "./components/InsightsPanel";
 import { SettingsModal } from "./components/SettingsModal";
 import "./App.css";
 
 const BLOCKING_THRESHOLD_DAYS = 3;
 const OLDEST_DANGER_DAYS = 5;
+
+export interface NextAction {
+  prNumber: number;
+  prTitle: string;
+  prUrl: string;
+  label: string;
+  ageDescription: string;
+}
+
+function ageDescription(updatedAt: string): string {
+  const ms = Date.now() - new Date(updatedAt).getTime();
+  const h = Math.floor(ms / 3_600_000);
+  if (h < 24) return `${h}H AGO`;
+  const d = Math.floor(h / 24);
+  return `${d}D AGO`;
+}
 
 function relativeTime(iso: string): string {
   const diffMs = Date.now() - new Date(iso).getTime();
@@ -284,6 +301,42 @@ export default function App() {
   useEffect(() => {
     setFaviconBadge(unreadByPr.total);
   }, [unreadByPr.total]);
+
+  const nextAction = useMemo((): NextAction | null => {
+    const authored = data?.prs ?? [];
+    const awaiting = awaitingQuery.data ?? [];
+
+    // Priority 1: PR I authored, CHANGES_REQUESTED + unread comment
+    for (const pr of authored) {
+      if (pr.effectiveReview === "CHANGES_REQUESTED" && (unreadByPr.map[pr.number]?.count ?? 0) > 0) {
+        return { prNumber: pr.number, prTitle: pr.title, prUrl: pr.url, label: "CHANGES REQUESTED", ageDescription: ageDescription(pr.updatedAt) };
+      }
+    }
+
+    // Priority 2: PR I authored, APPROVED + CI SUCCESS + not yet merged
+    for (const pr of authored) {
+      if (pr.effectiveReview === "APPROVED" && pr.ciState === "SUCCESS") {
+        return { prNumber: pr.number, prTitle: pr.title, prUrl: pr.url, label: "READY TO MERGE", ageDescription: ageDescription(pr.updatedAt) };
+      }
+    }
+
+    // Priority 3: PR awaiting my review, oldest blocking
+    if (awaiting.length > 0) {
+      const oldest = awaiting.reduce((a, b) =>
+        (a.blockingDays ?? 0) > (b.blockingDays ?? 0) ? a : b
+      );
+      return { prNumber: oldest.number, prTitle: oldest.title, prUrl: oldest.url, label: "AWAITING YOUR REVIEW", ageDescription: ageDescription(oldest.updatedAt) };
+    }
+
+    // Priority 4: PR I authored with unread comments
+    for (const pr of authored) {
+      if ((unreadByPr.map[pr.number]?.count ?? 0) > 0) {
+        return { prNumber: pr.number, prTitle: pr.title, prUrl: pr.url, label: "NEW COMMENTS", ageDescription: ageDescription(pr.updatedAt) };
+      }
+    }
+
+    return null;
+  }, [data?.prs, awaitingQuery.data, unreadByPr.map]);
 
   const markRead = useCallback((pr: PRSummary) => {
     const entry: SeenEntry = {
@@ -666,7 +719,32 @@ export default function App() {
           />
         </main>
       )}
-      {route !== "prs" && route !== "activity" && (
+      {route === "insights" && data?.viewer && data?.repo && (
+        <main className="main">
+          <InsightsPanel
+            token={settings.token}
+            owner={settings.owner}
+            repo={settings.repo}
+            viewerLogin={data.viewer.login}
+            viewerAvatarUrl={data.viewer.avatarUrl}
+            repoCreatedAt={data.repo.createdAt}
+            intervalMs={5 * 60_000}
+            reviewQueueCount={awaitingQuery.data?.length}
+            reviewQueueOldestDays={
+              awaitingPRs.filter((p) => !p.isTeamRequest && p.blockingDays !== null).length > 0
+                ? Math.max(
+                    ...awaitingPRs
+                      .filter((p) => !p.isTeamRequest && p.blockingDays !== null)
+                      .map((p) => p.blockingDays!),
+                    0,
+                  )
+                : undefined
+            }
+            nextAction={nextAction}
+          />
+        </main>
+      )}
+      {route === "linear" && (
         <main className="main">
           <p>Coming soon</p>
         </main>

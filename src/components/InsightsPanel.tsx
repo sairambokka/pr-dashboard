@@ -8,6 +8,7 @@ import {
   getPeriodRange,
 } from "../lib/insights";
 import type { Period } from "../lib/insights";
+import type { NextAction } from "../App";
 import { ThroughputChart } from "./insights/ThroughputChart";
 import { TopReviewers } from "./insights/TopReviewers";
 import { CommitCadence } from "./insights/CommitCadence";
@@ -25,6 +26,7 @@ interface Props {
   intervalMs: number;
   reviewQueueCount?: number;
   reviewQueueOldestDays?: number;
+  nextAction?: NextAction | null;
 }
 
 // ── Delta helpers ─────────────────────────────────────────────────────────────
@@ -247,6 +249,7 @@ export function InsightsPanel({
   intervalMs,
   reviewQueueCount,
   reviewQueueOldestDays,
+  nextAction,
 }: Props) {
   const [period, setPeriod] = useState<Period>(() => {
     const fromUrl = new URLSearchParams(window.location.search).get("period") as Period | null;
@@ -396,6 +399,27 @@ export function InsightsPanel({
 
   return (
     <div>
+      {nextAction ? (
+        <a
+          href={nextAction.prUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="pr-of-day"
+        >
+          <div className="pod-label">◆ NEXT ACTION</div>
+          <div className="pod-title">{nextAction.prTitle}</div>
+          <div className="pod-meta">
+            PR <span className="num mono">{nextAction.prNumber}</span> · {nextAction.label} ·{" "}
+            {nextAction.ageDescription}
+          </div>
+        </a>
+      ) : (
+        <div className="pr-of-day pr-of-day-empty">
+          <div className="pod-label">◆ NEXT ACTION</div>
+          <div className="pod-title">Inbox zero. Nothing waiting on you.</div>
+        </div>
+      )}
+
       <div className="period-toggle">
         {(["7d", "30d", "90d", "1y", "all"] as const).map((p) => (
           <button

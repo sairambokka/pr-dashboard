@@ -4,6 +4,7 @@ const QUERY = `
 query($owner: String!, $name: String!) {
   viewer { login name avatarUrl(size: 88) }
   repository(owner: $owner, name: $name) {
+    createdAt
     pullRequests(states: OPEN, first: 50, orderBy: {field: UPDATED_AT, direction: DESC}) {
       nodes {
         number
@@ -155,6 +156,7 @@ interface GqlResp {
   data?: {
     viewer: { login: string; name: string | null; avatarUrl: string };
     repository: {
+      createdAt: string;
       pullRequests: {
         nodes: GqlPRNode[];
       };
@@ -262,7 +264,11 @@ export async function fetchMyPRs(
   token: string,
   owner: string,
   name: string,
-): Promise<{ viewer: { login: string; name: string | null; avatarUrl: string }; prs: PRSummary[] }> {
+): Promise<{
+  viewer: { login: string; name: string | null; avatarUrl: string };
+  repo: { createdAt: string };
+  prs: PRSummary[];
+}> {
   const res = await fetch(GQL_URL, {
     method: "POST",
     headers: {
@@ -286,7 +292,7 @@ export async function fetchMyPRs(
     .filter((p) => p.author?.login === login)
     .map((p) => parsePullRequestNode(p, login));
 
-  return { viewer, prs };
+  return { viewer, repo: { createdAt: json.data.repository.createdAt }, prs };
 }
 
 const TURNAROUND_QUERY = `
