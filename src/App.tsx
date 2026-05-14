@@ -6,6 +6,7 @@ import {
   loadSettings,
   saveSeen,
   saveSettings,
+  type SeenEntry,
   type SeenMap,
   type Settings,
 } from "./lib/storage";
@@ -145,37 +146,91 @@ export default function App() {
     const { prs: fresh } = data;
     const prior = seenRef.current;
     const next: SeenMap = { ...prior };
+    const ciFailStates = new Set(["FAILURE", "ERROR"]);
 
     for (const pr of fresh) {
+      const snapshot: SeenEntry = {
+        totalComments: pr.totalCommentCount,
+        latestReviewSubmittedAt: pr.latestReviewSubmittedAt,
+        ciState: pr.ciState,
+      };
       if (!(pr.number in prior)) {
-        next[pr.number] = pr.totalCommentCount;
+        next[pr.number] = snapshot;
         continue;
       }
-      const delta = pr.totalCommentCount - prior[pr.number];
-      if (delta > 0) {
+      const p = prior[pr.number];
+      const commentDelta = pr.totalCommentCount - p.totalComments;
+      if (commentDelta > 0) {
         notify(
-          `PR #${pr.number}: ${delta} new comment${delta === 1 ? "" : "s"}`,
+          `PR #${pr.number}: ${commentDelta} new comment${commentDelta === 1 ? "" : "s"}`,
           pr.title,
           pr.url,
         );
       }
+      const reviewAdvanced =
+        pr.latestReviewSubmittedAt !== null &&
+        (p.latestReviewSubmittedAt === null ||
+          pr.latestReviewSubmittedAt > p.latestReviewSubmittedAt);
+      if (reviewAdvanced) {
+        notify(`PR #${pr.number}: new review`, pr.title, pr.url);
+      }
+      const ciTurnedBad =
+        pr.ciState !== null &&
+        ciFailStates.has(pr.ciState) &&
+        (p.ciState === null || !ciFailStates.has(p.ciState));
+      if (ciTurnedBad) {
+        notify(`PR #${pr.number}: CI failed`, pr.title, pr.url);
+      }
+      next[pr.number] = snapshot;
     }
     for (const key of Object.keys(next)) {
       if (!fresh.some((p) => String(p.number) === key)) delete next[Number(key)];
     }
 
-    setSeen(next);
-    saveSeen(next);
-  }, [data]);
+    // Skip no-op writes to avoid triggering re-renders
+    const prevSeen = seenRef.current;
+    const changed =
+      Object.keys(next).length !== Object.keys(prevSeen).length ||
+      Object.keys(next).some((k) => {
+        const num = Number(k);
+        const a = next[num];
+        const b = prevSeen[num];
+        if (!b) return true;
+        return (
+          a.totalComments !== b.totalComments ||
+          a.latestReviewSubmittedAt !== b.latestReviewSubmittedAt ||
+          a.ciState !== b.ciState
+        );
+      });
+
+    if (changed) {
+      setSeen(next);
+      saveSeen(next);
+    }
+  }, [data?.prs, dataUpdatedAt]);
 
   const unreadByPr = useMemo(() => {
-    const map: Record<number, number> = {};
+    const ciFailStates = new Set(["FAILURE", "ERROR"]);
+    const map: Record<number, { unread: boolean; count: number }> = {};
     let total = 0;
     for (const pr of prs) {
-      const baseline = seen[pr.number] ?? pr.totalCommentCount;
-      const u = Math.max(0, pr.totalCommentCount - baseline);
-      map[pr.number] = u;
-      total += u;
+      const prior = seen[pr.number];
+      if (!prior) {
+        map[pr.number] = { unread: false, count: 0 };
+        continue;
+      }
+      const commentDelta = Math.max(0, pr.totalCommentCount - prior.totalComments);
+      const reviewAdvanced =
+        pr.latestReviewSubmittedAt !== null &&
+        (prior.latestReviewSubmittedAt === null ||
+          pr.latestReviewSubmittedAt > prior.latestReviewSubmittedAt);
+      const ciTurnedBad =
+        pr.ciState !== null &&
+        ciFailStates.has(pr.ciState) &&
+        (prior.ciState === null || !ciFailStates.has(prior.ciState));
+      const unread = commentDelta > 0 || reviewAdvanced || ciTurnedBad;
+      map[pr.number] = { unread, count: commentDelta };
+      total += commentDelta;
     }
     return { map, total };
   }, [prs, seen]);
@@ -184,15 +239,26 @@ export default function App() {
     setFaviconBadge(unreadByPr.total);
   }, [unreadByPr.total]);
 
-  const markRead = useCallback((prNumber: number, currentCount: number) => {
-    const next = { ...seenRef.current, [prNumber]: currentCount };
+  const markRead = useCallback((pr: PRSummary) => {
+    const entry: SeenEntry = {
+      totalComments: pr.totalCommentCount,
+      latestReviewSubmittedAt: pr.latestReviewSubmittedAt,
+      ciState: pr.ciState,
+    };
+    const next = { ...seenRef.current, [pr.number]: entry };
     setSeen(next);
     saveSeen(next);
   }, []);
 
   const markAllRead = useCallback(() => {
     const next: SeenMap = {};
-    for (const pr of prs) next[pr.number] = pr.totalCommentCount;
+    for (const pr of prs) {
+      next[pr.number] = {
+        totalComments: pr.totalCommentCount,
+        latestReviewSubmittedAt: pr.latestReviewSubmittedAt,
+        ciState: pr.ciState,
+      };
+    }
     setSeen(next);
     saveSeen(next);
   }, [prs]);
@@ -200,7 +266,7 @@ export default function App() {
   const handlePrClick = (e: React.MouseEvent<HTMLAnchorElement>, pr: PRSummary) => {
     if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
     e.preventDefault();
-    markRead(pr.number, pr.totalCommentCount);
+    markRead(pr);
     window.open(pr.url, "_blank", "noopener,noreferrer");
   };
 
@@ -330,10 +396,12 @@ export default function App() {
 
               <ul className="pr-list">
                 {prs.map((pr) => {
-                  const unread = unreadByPr.map[pr.number] ?? 0;
+                  const unreadEntry = unreadByPr.map[pr.number];
+                  const isUnread = unreadEntry?.unread ?? false;
+                  const unreadCount = unreadEntry?.count ?? 0;
                   const created = relativeTime(pr.updatedAt);
                   return (
-                    <li key={pr.number} className={`pr-row ${unread > 0 ? "is-unread" : ""}`}>
+                    <li key={pr.number} className={`pr-row ${isUnread ? "is-unread" : ""}`}>
                       <div className="pr-icon-col">
                         <PrIcon state={pr.isDraft ? "draft" : "open"} />
                       </div>
@@ -366,18 +434,18 @@ export default function App() {
                         </div>
                       </div>
                       <div className="pr-right">
-                        {unread > 0 && (
+                        {isUnread && (
                           <button
                             className="unread-bubble"
-                            title={`${unread} new — click to mark read`}
+                            title={`${unreadCount > 0 ? `${unreadCount} new comment${unreadCount === 1 ? "" : "s"} — ` : ""}click to mark read`}
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
-                              markRead(pr.number, pr.totalCommentCount);
+                              markRead(pr);
                             }}
-                            aria-label={`${unread} new comments, click to mark read`}
+                            aria-label={`${unreadCount > 0 ? `${unreadCount} new comments` : "new activity"}, click to mark read`}
                           >
-                            {unread > 99 ? "99+" : unread}
+                            {unreadCount > 99 ? "99+" : unreadCount > 0 ? unreadCount : "!"}
                           </button>
                         )}
                         {pr.totalCommentCount > 0 && (

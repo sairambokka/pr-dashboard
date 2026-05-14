@@ -34,6 +34,7 @@ query($owner: String!, $name: String!) {
 }`;
 
 export type ReviewState = "PENDING" | "COMMENTED" | "APPROVED" | "CHANGES_REQUESTED" | "DISMISSED";
+export type CiState = "SUCCESS" | "FAILURE" | "PENDING" | "ERROR" | "EXPECTED";
 
 export interface PRSummary {
   number: number;
@@ -50,7 +51,8 @@ export interface PRSummary {
   effectiveReview: "APPROVED" | "CHANGES_REQUESTED" | null;
   approvers: string[];
   changeRequesters: string[];
-  ciState: "SUCCESS" | "FAILURE" | "PENDING" | "ERROR" | "EXPECTED" | null;
+  ciState: CiState | null;
+  latestReviewSubmittedAt: string | null;
 }
 
 interface GqlResp {
@@ -123,12 +125,17 @@ export async function fetchMyPRs(
       const ci = p.commits.nodes[0]?.commit.statusCheckRollup?.state ?? null;
 
       const latestByAuthor = new Map<string, { state: ReviewState; at: string }>();
+      let latestReviewSubmittedAt: string | null = null;
       for (const r of p.reviews.nodes) {
         const author = r.author?.login;
         if (!author) continue;
         if (author === login) continue;
         if (r.state === "COMMENTED" || r.state === "PENDING") continue;
         const at = r.submittedAt ?? "";
+        if (!at) continue;
+        if (!latestReviewSubmittedAt || at > latestReviewSubmittedAt) {
+          latestReviewSubmittedAt = at;
+        }
         const existing = latestByAuthor.get(author);
         if (!existing || at > existing.at) {
           latestByAuthor.set(author, { state: r.state, at });
@@ -163,6 +170,7 @@ export async function fetchMyPRs(
         approvers,
         changeRequesters,
         ciState: ci,
+        latestReviewSubmittedAt,
       };
     });
   return { login, prs };
