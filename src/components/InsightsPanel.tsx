@@ -8,7 +8,8 @@ import {
   getPeriodRange,
 } from "../lib/insights";
 import type { Period } from "../lib/insights";
-import { POLL_HOURLY_MS } from "../lib/constants";
+import { POLL_DAILY_MS } from "../lib/constants";
+import { withDailyCache, cacheFetchedAt } from "../lib/cache";
 import type { NextAction } from "../lib/types";
 import { ThroughputChart } from "./insights/ThroughputChart";
 import { TopReviewers } from "./insights/TopReviewers";
@@ -306,21 +307,36 @@ export function InsightsPanel({
     enabled: Boolean(token && owner && repo),
   });
 
+  const contributorsCacheKey = `pr-dashboard.contributors.${owner}/${repo}`;
+  const commitActivityCacheKey = `pr-dashboard.commitActivity.${owner}/${repo}`;
+
   const { data: contributors, error: contributorsError } = useQuery({
     queryKey: ["contributors", owner, repo],
-    queryFn: () => fetchContributors(token, owner, repo),
-    refetchInterval: POLL_HOURLY_MS,
+    queryFn: () =>
+      withDailyCache(contributorsCacheKey, POLL_DAILY_MS, () =>
+        fetchContributors(token, owner, repo),
+      ),
+    refetchInterval: POLL_DAILY_MS,
+    staleTime: POLL_DAILY_MS,
+    gcTime: POLL_DAILY_MS,
     enabled: Boolean(token && owner && repo),
     retry: 1,
   });
 
   const { data: commitActivity, error: commitActivityError } = useQuery({
     queryKey: ["commitActivity", owner, repo],
-    queryFn: () => fetchCommitActivity(token, owner, repo),
-    refetchInterval: POLL_HOURLY_MS,
+    queryFn: () =>
+      withDailyCache(commitActivityCacheKey, POLL_DAILY_MS, () =>
+        fetchCommitActivity(token, owner, repo),
+      ),
+    refetchInterval: POLL_DAILY_MS,
+    staleTime: POLL_DAILY_MS,
+    gcTime: POLL_DAILY_MS,
     enabled: Boolean(token && owner && repo),
     retry: 1,
   });
+
+  const contributorsFetchedAt = cacheFetchedAt(contributorsCacheKey);
 
   // ── Contributor stats ───────────────────────────────────────────────────────
 
@@ -448,14 +464,24 @@ export function InsightsPanel({
       )}
 
       {contributorsError && (
-        <div className="error">
-          Contributors stats unavailable: {String((contributorsError as Error).message)}
+        <div className={(contributorsError as Error).name === "StatsComputingError" ? "banner banner-info" : "error"}>
+          {(contributorsError as Error).name === "StatsComputingError"
+            ? "Contributor stats still computing on GitHub — refresh in a few minutes."
+            : `Contributors stats unavailable: ${String((contributorsError as Error).message)}`}
         </div>
       )}
 
       {commitActivityError && (
-        <div className="error">
-          Commit activity unavailable: {String((commitActivityError as Error).message)}
+        <div className={(commitActivityError as Error).name === "StatsComputingError" ? "banner banner-info" : "error"}>
+          {(commitActivityError as Error).name === "StatsComputingError"
+            ? "Commit activity still computing on GitHub — refresh in a few minutes."
+            : `Commit activity unavailable: ${String((commitActivityError as Error).message)}`}
+        </div>
+      )}
+
+      {contributorsFetchedAt && (
+        <div className="section-meta" style={{ marginBottom: 12 }}>
+          CONTRIBUTOR DATA CACHED · {new Date(contributorsFetchedAt).toLocaleString()}
         </div>
       )}
 

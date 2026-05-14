@@ -86,6 +86,13 @@ async function gqlSearch<T>(
 
 // ── Shared REST retry helper ──────────────────────────────────────────────────
 
+export class StatsComputingError extends Error {
+  constructor(message = "Stats still computing — GitHub will finish in a few minutes") {
+    super(message);
+    this.name = "StatsComputingError";
+  }
+}
+
 async function restGetWithRetry<T>(url: string, token: string): Promise<T> {
   const headers = {
     Authorization: `Bearer ${token}`,
@@ -93,7 +100,7 @@ async function restGetWithRetry<T>(url: string, token: string): Promise<T> {
     "X-GitHub-Api-Version": "2022-11-28",
   };
 
-  const delays = [1000, 2000, 4000];
+  const delays = [1000, 2000, 4000, 8000];
 
   for (let attempt = 0; attempt <= delays.length; attempt++) {
     const res = await fetch(url, { headers });
@@ -103,7 +110,7 @@ async function restGetWithRetry<T>(url: string, token: string): Promise<T> {
         await new Promise((resolve) => setTimeout(resolve, delays[attempt]));
         continue;
       }
-      throw new Error("Contributors stats still computing — try again later");
+      throw new StatsComputingError();
     }
 
     if (!res.ok) {
@@ -113,8 +120,7 @@ async function restGetWithRetry<T>(url: string, token: string): Promise<T> {
     return (await res.json()) as T;
   }
 
-  // Unreachable, but satisfies TypeScript
-  throw new Error("Contributors stats still computing — try again later");
+  throw new StatsComputingError();
 }
 
 // ── Insights PRs ─────────────────────────────────────────────────────────────

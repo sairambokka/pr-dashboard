@@ -5,6 +5,7 @@ export const POLL_INSIGHTS_MS = 5 * 60_000; // Insights always 5 min
 export const POLL_LINEAR_MS = 5 * 60_000; // Linear always 5 min
 export const POLL_TURNAROUND_MS = 10 * 60_000; // Turnaround 10 min
 export const POLL_HOURLY_MS = 60 * 60_000; // Repo stats hourly
+export const POLL_DAILY_MS = 24 * 60 * 60_000; // Contributor stats daily
 
 /** Blocking thresholds (days) */
 export const BLOCKING_THRESHOLD_DAYS = 3;
