@@ -1,4 +1,12 @@
 // ── Activity feed ────────────────────────────────────────────────────────────
+//
+// Sourced from GitHub GraphQL search (not REST /events). REST events cap at
+// ~90 events total for a repo and are dominated by pushes / comments / CI
+// runs — leaving very few PR-shaped events after filtering. GraphQL search
+// returns PRs directly, scoped by date.
+
+const GQL_URL = "https://api.github.com/graphql";
+const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 
 export interface ActivityEvent {
   id: string;
@@ -12,61 +20,58 @@ export interface ActivityEvent {
 
 export interface ActivityFeed {
   events: ActivityEvent[];
-  etag: string | null;
+  etag: string | null; // kept for cache-key compat with ActivityPanel
 }
-
-type RawPREvent = {
-  id: string;
-  type: string;
-  created_at: string;
-  actor: { login: string };
-  payload: {
-    action: string;
-    pull_request: {
-      number: number;
-      title: string;
-      html_url: string;
-      merged: boolean | null;
-    };
-  };
-};
 
 export function isBot(login: string): boolean {
   return login.endsWith("[bot]");
 }
 
-// GitHub REST returns max ~300 events total; 3 pages × 30 covers typical 7-day windows.
-const MAX_ACTIVITY_PAGES = 3;
-
-const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
-const EVENTS_REST_BASE = "https://api.github.com/repos";
-
-async function fetchEventsPage(
-  token: string,
-  owner: string,
-  name: string,
-  page: number,
-  etag?: string,
-): Promise<{ status: number; events: RawPREvent[]; etag: string | null }> {
-  const url = `${EVENTS_REST_BASE}/${owner}/${name}/events?per_page=30&page=${page}`;
-  const headers: Record<string, string> = {
-    Authorization: `Bearer ${token}`,
-    Accept: "application/vnd.github+json",
-    "X-GitHub-Api-Version": "2022-11-28",
-  };
-  if (page === 1 && etag) {
-    headers["If-None-Match"] = etag;
-  }
-  const res = await fetch(url, { headers });
-  if (res.status === 304) {
-    return { status: 304, events: [], etag: etag ?? null };
-  }
-  if (!res.ok) {
-    throw new Error(`GitHub Events API ${res.status}: ${await res.text()}`);
-  }
-  const data = (await res.json()) as RawPREvent[];
-  return { status: res.status, events: data, etag: res.headers.get("etag") };
+interface GqlActor {
+  login: string;
 }
+
+interface GqlPRNode {
+  number: number;
+  title: string;
+  url: string;
+  createdAt: string;
+  closedAt: string | null;
+  mergedAt: string | null;
+  state: "OPEN" | "CLOSED" | "MERGED";
+  author: GqlActor | null;
+  mergedBy: GqlActor | null;
+}
+
+interface GqlSearchResp {
+  data?: {
+    createdSearch: { nodes: GqlPRNode[] };
+    closedSearch: { nodes: GqlPRNode[] };
+  };
+  errors?: Array<{ message: string }>;
+}
+
+const ACTIVITY_QUERY = `
+query Activity($createdQ: String!, $closedQ: String!) {
+  createdSearch: search(query: $createdQ, type: ISSUE, first: 100) {
+    nodes {
+      ... on PullRequest {
+        number title url createdAt closedAt mergedAt state
+        author { login }
+        mergedBy { login }
+      }
+    }
+  }
+  closedSearch: search(query: $closedQ, type: ISSUE, first: 100) {
+    nodes {
+      ... on PullRequest {
+        number title url createdAt closedAt mergedAt state
+        author { login }
+        mergedBy { login }
+      }
+    }
+  }
+}`;
 
 export async function fetchActivity(
   token: string,
@@ -75,57 +80,85 @@ export async function fetchActivity(
   opts?: { etag?: string; hideBots?: boolean },
 ): Promise<ActivityFeed> {
   const hideBots = opts?.hideBots !== false; // default true
+  const sinceIso = new Date(Date.now() - SEVEN_DAYS_MS).toISOString().slice(0, 10);
 
-  const page1 = await fetchEventsPage(token, owner, name, 1, opts?.etag);
+  const createdQ = `is:pr repo:${owner}/${name} created:>=${sinceIso}`;
+  const closedQ = `is:pr repo:${owner}/${name} closed:>=${sinceIso}`;
 
-  if (page1.status === 304) {
-    // 304 Not Modified — caller keeps prior cached events. Empty events array signals "unchanged".
-    return { events: [], etag: opts?.etag ?? null };
+  const res = await fetch(GQL_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ query: ACTIVITY_QUERY, variables: { createdQ, closedQ } }),
+  });
+  if (!res.ok) {
+    throw new Error(`GitHub GraphQL ${res.status}: ${await res.text()}`);
   }
+  const json: GqlSearchResp = await res.json();
+  if (json.errors?.length) {
+    throw new Error(json.errors.map((e) => e.message).join("; "));
+  }
+  if (!json.data) throw new Error("Empty GraphQL response");
 
   const cutoff = Date.now() - SEVEN_DAYS_MS;
-  let allEvents = [...page1.events];
-  const feedEtag = page1.etag;
+  const seen = new Map<string, ActivityEvent>(); // id -> event (de-dup by composite key)
 
-  // Check if oldest event on page 1 is within window — if so, fetch more pages
-  const oldestOnPage1 = page1.events[page1.events.length - 1];
-  if (oldestOnPage1 && new Date(oldestOnPage1.created_at).getTime() >= cutoff) {
-    for (let page = 2; page <= MAX_ACTIVITY_PAGES; page++) {
-      const result = await fetchEventsPage(token, owner, name, page);
-      if (result.events.length === 0) break;
-      allEvents = allEvents.concat(result.events);
-      const oldest = result.events[result.events.length - 1];
-      if (!oldest || new Date(oldest.created_at).getTime() < cutoff) break;
+  const push = (ev: ActivityEvent) => {
+    if (hideBots && isBot(ev.actor)) return;
+    seen.set(ev.id, ev);
+  };
+
+  for (const pr of json.data.createdSearch.nodes) {
+    if (!pr.number) continue; // empty union match
+    const t = new Date(pr.createdAt).getTime();
+    if (t < cutoff) continue;
+    push({
+      id: `${pr.number}-opened`,
+      timestamp: pr.createdAt,
+      actor: pr.author?.login ?? "unknown",
+      kind: "opened",
+      prNumber: pr.number,
+      prTitle: pr.title,
+      prUrl: pr.url,
+    });
+  }
+
+  for (const pr of json.data.closedSearch.nodes) {
+    if (!pr.number) continue;
+    if (pr.mergedAt) {
+      const t = new Date(pr.mergedAt).getTime();
+      if (t >= cutoff) {
+        push({
+          id: `${pr.number}-merged`,
+          timestamp: pr.mergedAt,
+          actor: pr.mergedBy?.login ?? pr.author?.login ?? "unknown",
+          kind: "merged",
+          prNumber: pr.number,
+          prTitle: pr.title,
+          prUrl: pr.url,
+        });
+      }
+    } else if (pr.closedAt) {
+      const t = new Date(pr.closedAt).getTime();
+      if (t >= cutoff) {
+        push({
+          id: `${pr.number}-closed`,
+          timestamp: pr.closedAt,
+          actor: pr.author?.login ?? "unknown",
+          kind: "closed",
+          prNumber: pr.number,
+          prTitle: pr.title,
+          prUrl: pr.url,
+        });
+      }
     }
   }
 
-  const events: ActivityEvent[] = allEvents
-    .filter((e) => e.type === "PullRequestEvent")
-    .filter((e) => new Date(e.created_at).getTime() >= cutoff)
-    .filter((e) => !(hideBots && isBot(e.actor.login)))
-    .flatMap((e): ActivityEvent[] => {
-      const action = e.payload.action;
-      const pr = e.payload.pull_request;
-      let kind: ActivityEvent["kind"] | null = null;
-      if (action === "opened" || action === "reopened") {
-        kind = "opened";
-      } else if (action === "closed") {
-        kind = pr.merged === true ? "merged" : "closed";
-      }
-      if (kind === null) return [];
-      return [
-        {
-          id: e.id,
-          timestamp: e.created_at,
-          actor: e.actor.login,
-          kind,
-          prNumber: pr.number,
-          prTitle: pr.title,
-          prUrl: pr.html_url,
-        },
-      ];
-    })
-    .sort((a, b) => (a.timestamp > b.timestamp ? -1 : 1));
+  const events = Array.from(seen.values()).sort((a, b) =>
+    a.timestamp > b.timestamp ? -1 : 1,
+  );
 
-  return { events, etag: feedEtag };
+  return { events, etag: null };
 }
