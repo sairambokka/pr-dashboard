@@ -193,7 +193,7 @@ export function SettingsModal({ settings, onSave, onClose }: Props) {
                 type="text"
                 value={draft.linearTeamId ?? ""}
                 onChange={(e) => setDraft((d) => ({ ...d, linearTeamId: e.target.value }))}
-                placeholder="auto-detect from key, optional override"
+                placeholder="Leave blank to use first team on your account"
               />
             </label>
           </section>
