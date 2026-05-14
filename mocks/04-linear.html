@@ -1,0 +1,312 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Linear — PR Dashboard</title>
+<link rel="stylesheet" href="shared.css" />
+<style>
+  .cycle-bar {
+    border: 1px solid var(--border);
+    padding: 24px 32px;
+    margin-bottom: 32px;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 32px;
+    align-items: center;
+  }
+  .cycle-label {
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .cycle-label strong {
+    display: block;
+    color: var(--text);
+    font-size: 16px;
+    letter-spacing: 0.02em;
+    margin-top: 4px;
+  }
+  .cycle-progress {
+    height: 12px;
+    background: var(--panel);
+    border: 1px solid var(--border-2);
+    position: relative;
+  }
+  .cycle-fill {
+    position: absolute;
+    inset: 0 auto 0 0;
+    background: linear-gradient(to right, var(--accent), var(--accent));
+  }
+  .cycle-tick {
+    position: absolute;
+    top: -3px;
+    bottom: -3px;
+    width: 1px;
+    background: var(--text);
+  }
+  .cycle-stats {
+    font-size: 11px;
+    text-align: right;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .cycle-stats strong {
+    color: var(--text);
+    font-weight: 500;
+  }
+
+  .linear-row {
+    grid-template-columns: 100px auto 1fr 100px 24px 80px 1fr auto;
+    padding: 14px 0;
+  }
+  .ticket-id {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--accent);
+    letter-spacing: 0.02em;
+  }
+  .status-badge {
+    font-size: 9px;
+    padding: 3px 8px;
+    border: 1px solid;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .status-todo {
+    border-color: var(--muted);
+    color: var(--muted);
+  }
+  .status-progress {
+    border-color: var(--yellow);
+    color: var(--yellow);
+  }
+  .status-review {
+    border-color: var(--blue);
+    color: var(--blue);
+  }
+  .status-done {
+    border-color: var(--green);
+    color: var(--green);
+  }
+  .status-blocked {
+    border-color: var(--red);
+    color: var(--red);
+  }
+  .item-title {
+    color: var(--text);
+    font-size: 13px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .item-title.muted { color: var(--muted); font-style: italic; }
+  .link-arrow {
+    color: var(--muted);
+    font-size: 14px;
+    text-align: center;
+  }
+  .pr-num-cell {
+    font-size: 12px;
+    color: var(--text);
+    font-weight: 500;
+  }
+  .pr-num-cell::before { content: "#"; color: var(--muted); }
+  .col-label {
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .row.mismatch {
+    background: linear-gradient(to right, rgba(239,68,68,0.04), transparent 70%);
+    border-left: 2px solid var(--red);
+    margin-left: -2px;
+  }
+  .mismatch-hint {
+    font-size: 10px;
+    color: var(--red);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+</style>
+</head>
+<body>
+<div class="overlay-scan"></div>
+
+<header class="topbar">
+  <div class="topbar-row">
+    <div class="brand"><span class="brand-mark"></span> PR.DASHBOARD</div>
+    <div class="repo-crumb">corca-dev / <strong>corca-app</strong></div>
+    <div class="user-tag">sairambokka</div>
+    <div class="topbar-actions">
+      <span class="ts">UPDATED 00:42 AGO</span>
+      <span class="live-indicator"><span class="live-dot"></span> LIVE</span>
+      <button class="btn">REFRESH</button>
+      <button class="btn">SETTINGS</button>
+    </div>
+  </div>
+</header>
+
+<nav class="tabs">
+  <div class="tabs-row">
+    <a href="01-prs.html"      class="tab">PRS <span class="tab-count">15</span></a>
+    <a href="02-activity.html" class="tab">ACTIVITY</a>
+    <a href="03-insights.html" class="tab">INSIGHTS</a>
+    <a href="04-linear.html"   class="tab" aria-current="true">LINEAR</a>
+  </div>
+</nav>
+
+<main class="main">
+  <div class="section-head">
+    <div class="section-title">LINEAR // PR ↔ TICKET LINK</div>
+    <div class="section-meta">CYCLE 24 · CORCA-DEV / SYMPY-HINTS</div>
+  </div>
+
+  <div class="cycle-bar">
+    <div class="cycle-label">CYCLE 24<strong>SYMPY HINTS · D2</strong></div>
+    <div>
+      <div class="cycle-progress">
+        <div class="cycle-fill" style="width: 62%;"></div>
+        <div class="cycle-tick" style="left: 62%;"></div>
+      </div>
+      <div style="display: flex; justify-content: space-between; font-size: 10px; color: var(--muted); margin-top: 6px; text-transform: uppercase; letter-spacing: 0.08em;">
+        <span>06 MAY</span>
+        <span>WED · DAY 8 / 14</span>
+        <span>20 MAY</span>
+      </div>
+    </div>
+    <div class="cycle-stats">
+      DONE <strong>9</strong> / IN-PROG <strong>4</strong> / TODO <strong>3</strong><br/>
+      <span style="font-size: 9px;">SCOPE 16 · BURNED 56%</span>
+    </div>
+  </div>
+
+  <div class="row linear-row" style="border-bottom: 1px solid var(--border-2); padding: 8px 0;">
+    <span class="col-label">TICKET</span>
+    <span></span>
+    <span class="col-label">TITLE</span>
+    <span class="col-label">STATUS</span>
+    <span></span>
+    <span class="col-label">PR</span>
+    <span class="col-label">PR STATE</span>
+    <span></span>
+  </div>
+
+  <a href="#" class="row linear-row">
+    <span class="ticket-id mono">D-2663</span>
+    <span><span class="status-badge status-review">IN REVIEW</span></span>
+    <span class="item-title">Implement Tailor Series using Sympy</span>
+    <span></span>
+    <span class="link-arrow">→</span>
+    <span class="pr-num-cell mono">2162</span>
+    <span class="item-title"><span class="tag tag-approved" style="font-size: 9px;">▲ APPROVED</span></span>
+    <span></span>
+  </a>
+
+  <a href="#" class="row linear-row mismatch">
+    <span class="ticket-id mono">D-2656</span>
+    <span><span class="status-badge status-progress">IN PROGRESS</span></span>
+    <span class="item-title">Fix derivative parsing in sympy for higher order derivatives</span>
+    <span class="mismatch-hint">▼ MISMATCH</span>
+    <span class="link-arrow">→</span>
+    <span class="pr-num-cell mono">2145</span>
+    <span class="item-title t-green">◆ MERGED 13:38</span>
+    <span></span>
+  </a>
+
+  <a href="#" class="row linear-row">
+    <span class="ticket-id mono">D-2622</span>
+    <span><span class="status-badge status-progress">IN PROGRESS</span></span>
+    <span class="item-title">Esc key binding should close chat window (Team + Chatbot)</span>
+    <span></span>
+    <span class="link-arrow">→</span>
+    <span class="pr-num-cell mono">2128</span>
+    <span class="item-title"><span class="tag tag-changes" style="font-size: 9px;">▼ CHANGES</span></span>
+    <span></span>
+  </a>
+
+  <a href="#" class="row linear-row">
+    <span class="ticket-id mono">D-2646</span>
+    <span><span class="status-badge status-progress">IN PROGRESS</span></span>
+    <span class="item-title">Inequality solution-set hints (∈ trigger)</span>
+    <span></span>
+    <span class="link-arrow">→</span>
+    <span class="pr-num-cell mono">2185</span>
+    <span class="item-title t-dim">OPEN · 02D</span>
+    <span></span>
+  </a>
+
+  <a href="#" class="row linear-row">
+    <span class="ticket-id mono">D-2614</span>
+    <span><span class="status-badge status-progress">IN PROGRESS</span></span>
+    <span class="item-title">Support for degrees in postfix units inside sympy</span>
+    <span></span>
+    <span class="link-arrow">→</span>
+    <span class="pr-num-cell mono">2168</span>
+    <span class="item-title t-dim">OPEN · 01D</span>
+    <span></span>
+  </a>
+
+  <a href="#" class="row linear-row">
+    <span class="ticket-id mono">D-2655</span>
+    <span><span class="status-badge status-todo">TODO</span></span>
+    <span class="item-title">Update phantomHint suggestion not to trigger for symbol except '='</span>
+    <span></span>
+    <span class="link-arrow">→</span>
+    <span class="pr-num-cell mono">2147</span>
+    <span class="item-title t-dim">DRAFT</span>
+    <span></span>
+  </a>
+
+  <a href="#" class="row linear-row">
+    <span class="ticket-id mono">D-2567</span>
+    <span><span class="status-badge status-progress">IN PROGRESS</span></span>
+    <span class="item-title">Add cursor inside units for continuous typing</span>
+    <span></span>
+    <span class="link-arrow">→</span>
+    <span class="pr-num-cell mono">2127</span>
+    <span class="item-title t-dim">OPEN · 02D</span>
+    <span></span>
+  </a>
+
+  <a href="#" class="row linear-row">
+    <span class="ticket-id mono">D-2701</span>
+    <span><span class="status-badge status-blocked">BLOCKED</span></span>
+    <span class="item-title">Add OpenSearch index for matrix expressions</span>
+    <span></span>
+    <span class="link-arrow">→</span>
+    <span class="pr-num-cell mono">2154</span>
+    <span class="item-title t-accent">◆ AWAITING YOUR REVIEW</span>
+    <span></span>
+  </a>
+
+  <a href="#" class="row linear-row" style="opacity: 0.55;">
+    <span class="ticket-id mono">D-2730</span>
+    <span><span class="status-badge status-todo">TODO</span></span>
+    <span class="item-title muted">Rails 7.2 upgrade prep (no PR linked yet)</span>
+    <span></span>
+    <span class="link-arrow">—</span>
+    <span class="t-dim">—</span>
+    <span class="t-dim">—</span>
+    <span></span>
+  </a>
+
+  <a href="#" class="row linear-row" style="opacity: 0.55;">
+    <span class="ticket-id mono">D-2738</span>
+    <span><span class="status-badge status-todo">TODO</span></span>
+    <span class="item-title muted">Mobile: handle deep-link to PR comment thread</span>
+    <span></span>
+    <span class="link-arrow">—</span>
+    <span class="t-dim">—</span>
+    <span class="t-dim">—</span>
+    <span></span>
+  </a>
+</main>
+
+</body>
+</html>
