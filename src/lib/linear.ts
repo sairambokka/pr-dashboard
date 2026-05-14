@@ -114,8 +114,10 @@ async function linearGql<T>(
     data?: T;
     errors?: Array<{ message: string }>;
   };
-  if (json.errors?.length) throw new Error(json.errors.map((e) => e.message).join("; "));
-  if (!json.data) throw new Error("Empty Linear response");
+  if (json.errors?.length) {
+    throw new Error(`Linear API: ${json.errors.map((e) => e.message).join("; ")}`);
+  }
+  if (!json.data) throw new Error("Linear API: empty response");
   return json.data;
 }
 
