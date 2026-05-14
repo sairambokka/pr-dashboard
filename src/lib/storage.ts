@@ -5,6 +5,7 @@ export interface Settings {
   intervalSec: number;
   linearApiKey?: string;
   linearTeamId?: string;
+  hideBots?: boolean;
 }
 
 const KEY = "pr-dashboard.settings";
@@ -15,6 +16,7 @@ const DEFAULT: Settings = {
   owner: "",
   repo: "",
   intervalSec: 60,
+  hideBots: true,
 };
 
 export function loadSettings(): Settings {

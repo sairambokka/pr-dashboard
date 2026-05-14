@@ -199,6 +199,18 @@ export function SettingsModal({ settings, onSave, onClose }: Props) {
           </section>
 
           <section className="settings-group">
+            <h3>Activity</h3>
+            <label>
+              <input
+                type="checkbox"
+                checked={draft.hideBots ?? true}
+                onChange={(e) => setDraft((d) => ({ ...d, hideBots: e.target.checked }))}
+              />
+              Hide bot activity (Dependabot, github-actions, etc.)
+            </label>
+          </section>
+
+          <section className="settings-group">
             <h3>Polling</h3>
             <label>
               Interval (seconds)
