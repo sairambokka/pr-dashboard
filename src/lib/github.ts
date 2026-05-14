@@ -355,7 +355,6 @@ export async function fetchTurnaround(
   token: string,
   owner: string,
   name: string,
-  _viewerLogin: string,
 ): Promise<TurnaroundStat> {
   const iso = new Date(Date.now() - 30 * 86_400_000).toISOString().slice(0, 10);
   const searchQ = `is:pr is:closed repo:${owner}/${name} closed:>=${iso}`;
@@ -413,7 +412,6 @@ export async function fetchTurnaround(
       let earliest: number | null = null;
       for (const rev of reviewEvents) {
         const revTime = new Date(rev.submittedAt).getTime();
-        if (rev.authorLogin === req.reviewerLogin) continue;
         if (revTime < reqTime) continue;
         if (earliest === null || revTime < earliest) {
           earliest = revTime;

@@ -159,9 +159,9 @@ export default function App() {
 
   const turnaroundQuery = useQuery({
     queryKey: ["turnaround", settings.owner, settings.repo],
-    queryFn: () => fetchTurnaround(settings.token, settings.owner, settings.repo, viewer.login),
+    queryFn: () => fetchTurnaround(settings.token, settings.owner, settings.repo),
     refetchInterval: 10 * 60_000,
-    enabled: configured && scope === "awaiting",
+    enabled: configured && Boolean(viewer.login) && scope === "awaiting",
   });
 
   const awaitingPRs: AwaitingReviewPR[] = awaitingQuery.data ?? [];
