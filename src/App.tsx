@@ -4,9 +4,19 @@ import {
   fetchAwaitingReview,
   fetchMyPRs,
   fetchTurnaround,
+  isCiFailed,
   type AwaitingReviewPR,
   type PRSummary,
 } from "./lib/github";
+import {
+  BLOCKING_THRESHOLD_DAYS,
+  OLDEST_DANGER_DAYS,
+  POLL_HIDDEN_MS,
+  POLL_INSIGHTS_MS,
+  POLL_LINEAR_MS,
+  POLL_TURNAROUND_MS,
+} from "./lib/constants";
+import type { NextAction } from "./lib/types";
 import {
   loadSeen,
   loadSettings,
@@ -25,17 +35,6 @@ import { InsightsPanel } from "./components/InsightsPanel";
 import { LinearPanel } from "./components/LinearPanel";
 import { SettingsModal } from "./components/SettingsModal";
 import "./App.css";
-
-const BLOCKING_THRESHOLD_DAYS = 3;
-const OLDEST_DANGER_DAYS = 5;
-
-export interface NextAction {
-  prNumber: number;
-  prTitle: string;
-  prUrl: string;
-  label: string;
-  ageDescription: string;
-}
 
 function ageDescription(updatedAt: string): string {
   const ms = Date.now() - new Date(updatedAt).getTime();
@@ -157,7 +156,7 @@ export default function App() {
   const seenRef = useRef(seen);
   seenRef.current = seen;
 
-  const activityIntervalMs = isVisible ? settings.intervalSec * 1000 : 5 * 60_000;
+  const activityIntervalMs = isVisible ? settings.intervalSec * 1000 : POLL_HIDDEN_MS;
   const configured = Boolean(settings.token && settings.owner && settings.repo);
 
   const { data, error, isFetching, dataUpdatedAt, refetch } = useQuery({
@@ -182,7 +181,7 @@ export default function App() {
   const turnaroundQuery = useQuery({
     queryKey: ["turnaround", settings.owner, settings.repo],
     queryFn: () => fetchTurnaround(settings.token, settings.owner, settings.repo),
-    refetchInterval: 10 * 60_000,
+    refetchInterval: POLL_TURNAROUND_MS,
     enabled: configured && Boolean(viewer.login) && scope === "awaiting",
   });
 
@@ -210,8 +209,6 @@ export default function App() {
     const { prs: fresh } = data;
     const prior = seenRef.current;
     const next: SeenMap = { ...prior };
-    const ciFailStates = new Set(["FAILURE", "ERROR"]);
-
     const tabFocused = typeof document !== "undefined" && document.hasFocus();
     const onPrsTab = route === "prs";
     const shouldNotify = !(tabFocused && onPrsTab);
@@ -244,8 +241,8 @@ export default function App() {
       }
       const ciTurnedBad =
         pr.ciState !== null &&
-        ciFailStates.has(pr.ciState) &&
-        (p.ciState === null || !ciFailStates.has(p.ciState));
+        isCiFailed(pr.ciState) &&
+        (p.ciState === null || !isCiFailed(p.ciState));
       if (shouldNotify && ciTurnedBad) {
         notify(`PR #${pr.number}: CI failed`, pr.title, pr.url);
       }
@@ -278,7 +275,6 @@ export default function App() {
   }, [data?.prs, dataUpdatedAt, route]);
 
   const unreadByPr = useMemo(() => {
-    const ciFailStates = new Set(["FAILURE", "ERROR"]);
     const map: Record<number, { unread: boolean; count: number }> = {};
     let total = 0;
     for (const pr of prs) {
@@ -294,8 +290,8 @@ export default function App() {
           pr.latestReviewSubmittedAt > prior.latestReviewSubmittedAt);
       const ciTurnedBad =
         pr.ciState !== null &&
-        ciFailStates.has(pr.ciState) &&
-        (prior.ciState === null || !ciFailStates.has(prior.ciState));
+        isCiFailed(pr.ciState) &&
+        (prior.ciState === null || !isCiFailed(prior.ciState));
       const unread = commentDelta > 0 || reviewAdvanced || ciTurnedBad;
       map[pr.number] = { unread, count: commentDelta };
       total += commentDelta;
@@ -738,7 +734,7 @@ export default function App() {
             viewerLogin={data.viewer.login}
             viewerAvatarUrl={data.viewer.avatarUrl}
             repoCreatedAt={data.repo.createdAt}
-            intervalMs={5 * 60_000}
+            intervalMs={POLL_INSIGHTS_MS}
             reviewQueueCount={awaitingQuery.data?.length}
             reviewQueueOldestDays={
               awaitingPRs.filter((p) => !p.isTeamRequest && p.blockingDays !== null).length > 0
@@ -768,7 +764,7 @@ export default function App() {
               apiKey={settings.linearApiKey}
               teamId={settings.linearTeamId}
               authoredPRs={data?.prs ?? []}
-              intervalMs={5 * 60_000}
+              intervalMs={POLL_LINEAR_MS}
             />
           )}
         </main>

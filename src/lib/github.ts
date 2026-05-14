@@ -84,6 +84,10 @@ query AwaitingReview($searchQ: String!) {
 export type ReviewState = "PENDING" | "COMMENTED" | "APPROVED" | "CHANGES_REQUESTED" | "DISMISSED";
 export type CiState = "SUCCESS" | "FAILURE" | "PENDING" | "ERROR" | "EXPECTED";
 
+export function isCiFailed(state: CiState | null): boolean {
+  return state === "FAILURE" || state === "ERROR";
+}
+
 export interface PRSummary {
   number: number;
   title: string;

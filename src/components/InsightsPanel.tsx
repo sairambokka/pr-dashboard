@@ -8,7 +8,8 @@ import {
   getPeriodRange,
 } from "../lib/insights";
 import type { Period } from "../lib/insights";
-import type { NextAction } from "../App";
+import { POLL_HOURLY_MS } from "../lib/constants";
+import type { NextAction } from "../lib/types";
 import { ThroughputChart } from "./insights/ThroughputChart";
 import { TopReviewers } from "./insights/TopReviewers";
 import { CommitCadence } from "./insights/CommitCadence";
@@ -308,14 +309,14 @@ export function InsightsPanel({
   const { data: contributors } = useQuery({
     queryKey: ["contributors", owner, repo],
     queryFn: () => fetchContributors(token, owner, repo),
-    refetchInterval: intervalMs * 6,
+    refetchInterval: POLL_HOURLY_MS,
     enabled: Boolean(token && owner && repo),
   });
 
   const { data: commitActivity } = useQuery({
     queryKey: ["commitActivity", owner, repo],
     queryFn: () => fetchCommitActivity(token, owner, repo),
-    refetchInterval: intervalMs * 12,
+    refetchInterval: POLL_HOURLY_MS,
     enabled: Boolean(token && owner && repo),
   });
 
