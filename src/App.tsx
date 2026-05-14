@@ -434,18 +434,18 @@ export default function App() {
                         </div>
                       </div>
                       <div className="pr-right">
-                        {isUnread && (
+                        {unreadCount > 0 && (
                           <button
                             className="unread-bubble"
-                            title={`${unreadCount > 0 ? `${unreadCount} new comment${unreadCount === 1 ? "" : "s"} — ` : ""}click to mark read`}
+                            title={`${unreadCount} new comment${unreadCount === 1 ? "" : "s"} — click to mark read`}
                             onClick={(e) => {
                               e.preventDefault();
                               e.stopPropagation();
                               markRead(pr);
                             }}
-                            aria-label={`${unreadCount > 0 ? `${unreadCount} new comments` : "new activity"}, click to mark read`}
+                            aria-label={`${unreadCount} new comment${unreadCount === 1 ? "" : "s"}, click to mark read`}
                           >
-                            {unreadCount > 99 ? "99+" : unreadCount > 0 ? unreadCount : "!"}
+                            {unreadCount > 99 ? "99+" : unreadCount}
                           </button>
                         )}
                         {pr.totalCommentCount > 0 && (
