@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Mocks Index — PR Dashboard</title>
+<link rel="stylesheet" href="shared.css" />
+<style>
+  .wrap {
+    max-width: 700px;
+    margin: 80px auto;
+    padding: 0 32px;
+  }
+  h1 {
+    font-size: 12px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 8px;
+  }
+  h2 {
+    font-size: 28px;
+    font-weight: 300;
+    letter-spacing: -0.01em;
+    color: var(--text);
+    margin-bottom: 48px;
+    line-height: 1.2;
+  }
+  .mocks-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    background: var(--border);
+    border: 1px solid var(--border);
+  }
+  .mocks-list a {
+    display: grid;
+    grid-template-columns: 48px 1fr auto;
+    gap: 16px;
+    align-items: center;
+    padding: 18px 24px;
+    background: var(--bg);
+    text-decoration: none;
+    color: inherit;
+    transition: background 80ms;
+  }
+  .mocks-list a:hover { background: var(--panel); }
+  .ml-num {
+    color: var(--accent);
+    font-size: 13px;
+    font-weight: 500;
+  }
+  .ml-title {
+    font-size: 14px;
+    color: var(--text);
+  }
+  .ml-desc {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 2px;
+    letter-spacing: 0.02em;
+  }
+  .ml-arrow {
+    font-size: 14px;
+    color: var(--muted);
+  }
+  .meta {
+    margin-top: 48px;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.04em;
+    line-height: 1.8;
+  }
+  .meta strong { color: var(--text); }
+  .meta-row { display: flex; gap: 12px; }
+  .meta-row .label {
+    color: var(--accent);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-size: 10px;
+    min-width: 100px;
+  }
+</style>
+</head>
+<body>
+<div class="overlay-scan"></div>
+
+<div class="wrap">
+  <h1>PR.DASHBOARD · UI MOCKS</h1>
+  <h2>Techno-minimal redesign<br/>for review before commit</h2>
+
+  <div class="mocks-list">
+    <a href="01-prs.html">
+      <span class="ml-num mono">01</span>
+      <span>
+        <div class="ml-title">PRs</div>
+        <div class="ml-desc">Toggle: Authored · Awaiting your review · review state + unread bubble</div>
+      </span>
+      <span class="ml-arrow">→</span>
+    </a>
+    <a href="02-activity.html">
+      <span class="ml-num mono">02</span>
+      <span>
+        <div class="ml-title">Activity</div>
+        <div class="ml-desc">Repo-wide stream · merges / opens / closes · 7d cadence</div>
+      </span>
+      <span class="ml-arrow">→</span>
+    </a>
+    <a href="03-insights.html">
+      <span class="ml-num mono">03</span>
+      <span>
+        <div class="ml-title">Insights</div>
+        <div class="ml-desc">Velocity · review queue · reviewer load · commit cadence</div>
+      </span>
+      <span class="ml-arrow">→</span>
+    </a>
+    <a href="04-linear.html">
+      <span class="ml-num mono">04</span>
+      <span>
+        <div class="ml-title">Linear</div>
+        <div class="ml-desc">Ticket ↔ PR link · cycle progress · status mismatch alerts</div>
+      </span>
+      <span class="ml-arrow">→</span>
+    </a>
+  </div>
+
+  <div class="meta">
+    <div class="meta-row">
+      <span class="label">Aesthetic</span>
+      <span>Industrial terminal · JetBrains Mono · amber (#ffb700) accent · 0–2px corners · scanline overlay</span>
+    </div>
+    <div class="meta-row">
+      <span class="label">Type scale</span>
+      <span>11 / 12 / 14 / 24px · tabular numerals everywhere</span>
+    </div>
+    <div class="meta-row">
+      <span class="label">Iconography</span>
+      <span>Unicode geometric · ◆ ◇ ▲ ▼ ○ ● · no emoji</span>
+    </div>
+    <div class="meta-row">
+      <span class="label">See</span>
+      <span><strong>MOCKS_README.md</strong> for detailed aesthetic notes</span>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

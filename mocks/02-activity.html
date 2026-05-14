@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Activity — PR Dashboard</title>
+<link rel="stylesheet" href="shared.css" />
+<style>
+  .cadence {
+    border: 1px solid var(--border);
+    padding: 24px 32px;
+    margin-bottom: 32px;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 32px;
+    align-items: center;
+  }
+  .cadence-label {
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .cadence-label strong {
+    display: block;
+    font-size: 28px;
+    font-weight: 300;
+    color: var(--text);
+    letter-spacing: -0.01em;
+    margin-top: 6px;
+  }
+  .cadence-spark {
+    height: 64px;
+    width: 100%;
+  }
+  .cadence-stats {
+    display: flex;
+    gap: 40px;
+    text-align: right;
+  }
+  .cs-block {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+  }
+  .cs-block strong {
+    display: block;
+    font-size: 20px;
+    color: var(--text);
+    font-weight: 400;
+    margin-top: 4px;
+  }
+
+  .day-block {
+    margin-bottom: 32px;
+  }
+  .day-header {
+    display: grid;
+    grid-template-columns: 110px 1fr auto;
+    gap: 24px;
+    align-items: baseline;
+    padding-bottom: 8px;
+    margin-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .day-name {
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+  }
+  .day-meta {
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .activity-row {
+    grid-template-columns: 110px 24px 1fr auto;
+  }
+  .ar-ts {
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .ar-icon { text-align: center; font-size: 13px; color: var(--accent); }
+  .icon-merged { color: var(--green); }
+  .icon-opened { color: var(--accent); }
+  .icon-closed { color: var(--red); }
+  .ar-summary {
+    color: var(--body);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .ar-summary .actor { color: var(--text); font-weight: 500; }
+  .ar-summary .actor::before { content: "@"; color: var(--accent); opacity: 0.6; }
+  .ar-summary .pr-ref { color: var(--accent); }
+  .ar-summary .pr-ref::before { content: "#"; }
+  .ar-summary .title { color: var(--text); }
+  .ar-kind {
+    font-size: 10px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+</style>
+</head>
+<body>
+<div class="overlay-scan"></div>
+
+<header class="topbar">
+  <div class="topbar-row">
+    <div class="brand"><span class="brand-mark"></span> PR.DASHBOARD</div>
+    <div class="repo-crumb">corca-dev / <strong>corca-app</strong></div>
+    <div class="user-tag">sairambokka</div>
+    <div class="topbar-actions">
+      <span class="ts">UPDATED 00:42 AGO</span>
+      <span class="live-indicator"><span class="live-dot"></span> LIVE</span>
+      <button class="btn">REFRESH</button>
+      <button class="btn">SETTINGS</button>
+    </div>
+  </div>
+</header>
+
+<nav class="tabs">
+  <div class="tabs-row">
+    <a href="01-prs.html"      class="tab">PRS <span class="tab-count">15</span></a>
+    <a href="02-activity.html" class="tab" aria-current="true">ACTIVITY</a>
+    <a href="03-insights.html" class="tab">INSIGHTS</a>
+    <a href="04-linear.html"   class="tab">LINEAR</a>
+  </div>
+</nav>
+
+<main class="main">
+  <div class="section-head">
+    <div class="section-title">REPO ACTIVITY // LAST 7 DAYS</div>
+    <div class="section-meta">38 EVENTS · CORCA-DEV/CORCA-APP</div>
+  </div>
+
+  <div class="cadence">
+    <div class="cadence-label">7D CADENCE <strong>14 / 38 / 06</strong></div>
+    <svg class="cadence-spark" viewBox="0 0 700 64" preserveAspectRatio="none">
+      <defs>
+        <linearGradient id="g1" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#ffb700" stop-opacity="0.5"/>
+          <stop offset="100%" stop-color="#ffb700" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      <!-- 7 day bars -->
+      <g>
+        <rect x="0"   y="34" width="92" height="30" fill="url(#g1)"/>
+        <rect x="100" y="20" width="92" height="44" fill="url(#g1)"/>
+        <rect x="200" y="10" width="92" height="54" fill="url(#g1)"/>
+        <rect x="300" y="28" width="92" height="36" fill="url(#g1)"/>
+        <rect x="400" y="42" width="92" height="22" fill="url(#g1)"/>
+        <rect x="500" y="18" width="92" height="46" fill="url(#g1)"/>
+        <rect x="600" y="6"  width="92" height="58" fill="url(#g1)"/>
+      </g>
+      <!-- bar tops -->
+      <g stroke="#ffb700" stroke-width="2" fill="none">
+        <line x1="0"   y1="34" x2="92"  y2="34"/>
+        <line x1="100" y1="20" x2="192" y2="20"/>
+        <line x1="200" y1="10" x2="292" y2="10"/>
+        <line x1="300" y1="28" x2="392" y2="28"/>
+        <line x1="400" y1="42" x2="492" y2="42"/>
+        <line x1="500" y1="18" x2="592" y2="18"/>
+        <line x1="600" y1="6"  x2="692" y2="6"/>
+      </g>
+      <!-- baseline -->
+      <line x1="0" y1="64" x2="700" y2="64" stroke="#2a2a2a"/>
+    </svg>
+    <div class="cadence-stats">
+      <div class="cs-block">OPENED <strong>14</strong></div>
+      <div class="cs-block">MERGED <strong>18</strong></div>
+      <div class="cs-block">CLOSED <strong>06</strong></div>
+    </div>
+  </div>
+
+  <div class="day-block">
+    <div class="day-header">
+      <span class="day-name">TODAY · WED 13</span>
+      <span></span>
+      <span class="day-meta">7 EVENTS</span>
+    </div>
+
+    <a href="#" class="row activity-row">
+      <span class="ar-ts mono">15:42</span>
+      <span class="ar-icon icon-merged">◆</span>
+      <span class="ar-summary"><span class="actor">heeyoung-kim</span> merged <span class="pr-ref">2204</span> <span class="title">chore: bump pnpm to 10.11</span></span>
+      <span class="ar-kind">MERGED</span>
+    </a>
+    <a href="#" class="row activity-row">
+      <span class="ar-ts mono">14:11</span>
+      <span class="ar-icon icon-opened">◇</span>
+      <span class="ar-summary"><span class="actor">park-jin</span> opened <span class="pr-ref">2207</span> <span class="title">D-2730: Rails 7.2 upgrade prep</span></span>
+      <span class="ar-kind">OPENED</span>
+    </a>
+    <a href="#" class="row activity-row">
+      <span class="ar-ts mono">13:38</span>
+      <span class="ar-icon icon-merged">◆</span>
+      <span class="ar-summary"><span class="actor">sairambokka</span> merged <span class="pr-ref">2145</span> <span class="title">D-2656: Fix derivative parsing</span></span>
+      <span class="ar-kind">MERGED</span>
+    </a>
+    <a href="#" class="row activity-row">
+      <span class="ar-ts mono">11:20</span>
+      <span class="ar-icon icon-opened">◇</span>
+      <span class="ar-summary"><span class="actor">sairambokka</span> opened <span class="pr-ref">2197</span> <span class="title">feat: direction-matched inequality phantom hints</span></span>
+      <span class="ar-kind">OPENED</span>
+    </a>
+    <a href="#" class="row activity-row">
+      <span class="ar-ts mono">10:08</span>
+      <span class="ar-icon icon-closed">◇</span>
+      <span class="ar-summary"><span class="actor">kyeo76</span> closed <span class="pr-ref">2188</span> <span class="title">poc: lattice render perf</span></span>
+      <span class="ar-kind">CLOSED</span>
+    </a>
+    <a href="#" class="row activity-row">
+      <span class="ar-ts mono">09:55</span>
+      <span class="ar-icon icon-merged">◆</span>
+      <span class="ar-summary"><span class="actor">heeyoung-kim</span> merged <span class="pr-ref">2196</span> <span class="title">refactor: tiptap suggestion plugin</span></span>
+      <span class="ar-kind">MERGED</span>
+    </a>
+    <a href="#" class="row activity-row">
+      <span class="ar-ts mono">08:42</span>
+      <span class="ar-icon icon-opened">◇</span>
+      <span class="ar-summary"><span class="actor">kyeo76</span> opened <span class="pr-ref">2206</span> <span class="title">feat: matrix transpose icon affordance</span></span>
+      <span class="ar-kind">OPENED</span>
+    </a>
+  </div>
+
+  <div class="day-block">
+    <div class="day-header">
+      <span class="day-name">YESTERDAY · TUE 12</span>
+      <span></span>
+      <span class="day-meta">9 EVENTS</span>
+    </div>
+
+    <a href="#" class="row activity-row">
+      <span class="ar-ts mono">19:14</span>
+      <span class="ar-icon icon-merged">◆</span>
+      <span class="ar-summary"><span class="actor">park-jin</span> merged <span class="pr-ref">2190</span> <span class="title">Add hbar to symbol push array</span></span>
+      <span class="ar-kind">MERGED</span>
+    </a>
+    <a href="#" class="row activity-row">
+      <span class="ar-ts mono">17:32</span>
+      <span class="ar-icon icon-merged">◆</span>
+      <span class="ar-summary"><span class="actor">kyeo76</span> merged <span class="pr-ref">2167</span> <span class="title">D-2661: Code block enter/exit fix</span></span>
+      <span class="ar-kind">MERGED</span>
+    </a>
+    <a href="#" class="row activity-row">
+      <span class="ar-ts mono">15:18</span>
+      <span class="ar-icon icon-opened">◇</span>
+      <span class="ar-summary"><span class="actor">sairambokka</span> opened <span class="pr-ref">2185</span> <span class="title">D-2646: Inequality solution-set hints</span></span>
+      <span class="ar-kind">OPENED</span>
+    </a>
+    <a href="#" class="row activity-row">
+      <span class="ar-ts mono">12:09</span>
+      <span class="ar-icon icon-closed">◇</span>
+      <span class="ar-summary"><span class="actor">heeyoung-kim</span> closed <span class="pr-ref">2179</span> <span class="title">superseded by #2196</span></span>
+      <span class="ar-kind">CLOSED</span>
+    </a>
+  </div>
+
+  <div class="day-block">
+    <div class="day-header">
+      <span class="day-name">MON 11 MAY</span>
+      <span></span>
+      <span class="day-meta">5 EVENTS</span>
+    </div>
+
+    <a href="#" class="row activity-row">
+      <span class="ar-ts mono">18:51</span>
+      <span class="ar-icon icon-merged">◆</span>
+      <span class="ar-summary"><span class="actor">sairambokka</span> merged <span class="pr-ref">2083</span> <span class="title">D-2553: Add simplification for Geogebra graphs</span></span>
+      <span class="ar-kind">MERGED</span>
+    </a>
+    <a href="#" class="row activity-row">
+      <span class="ar-ts mono">14:22</span>
+      <span class="ar-icon icon-merged">◆</span>
+      <span class="ar-summary"><span class="actor">park-jin</span> merged <span class="pr-ref">2161</span> <span class="title">CI: cache pnpm store across jobs</span></span>
+      <span class="ar-kind">MERGED</span>
+    </a>
+  </div>
+</main>
+
+</body>
+</html>

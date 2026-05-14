@@ -3,6 +3,9 @@ export interface Settings {
   owner: string;
   repo: string;
   intervalSec: number;
+  linearApiKey?: string;
+  linearTeamId?: string;
+  hideBots?: boolean;
 }
 
 const KEY = "pr-dashboard.settings";
@@ -13,6 +16,7 @@ const DEFAULT: Settings = {
   owner: "",
   repo: "",
   intervalSec: 60,
+  hideBots: true,
 };
 
 export function loadSettings(): Settings {
@@ -29,13 +33,31 @@ export function saveSettings(s: Settings): void {
   localStorage.setItem(KEY, JSON.stringify(s));
 }
 
-export type SeenMap = Record<number, number>;
+import type { CiState } from "./github";
+
+export interface SeenEntry {
+  totalComments: number;
+  latestReviewSubmittedAt: string | null;
+  ciState: CiState | null;
+  snoozedUntil?: number;
+}
+
+export type SeenMap = Record<number, SeenEntry>;
 
 export function loadSeen(): SeenMap {
   try {
     const raw = localStorage.getItem(SEEN_KEY);
     if (!raw) return {};
-    return JSON.parse(raw) as SeenMap;
+    const parsed = JSON.parse(raw) as Record<number, number | SeenEntry>;
+    const out: SeenMap = {};
+    for (const [k, v] of Object.entries(parsed)) {
+      if (typeof v === "number") {
+        out[Number(k)] = { totalComments: v, latestReviewSubmittedAt: null, ciState: null };
+      } else {
+        out[Number(k)] = v;
+      }
+    }
+    return out;
   } catch {
     return {};
   }

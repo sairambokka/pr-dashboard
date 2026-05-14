@@ -1,16 +1,50 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { fetchMyPRs, type PRSummary } from "./lib/github";
+import { useQuery } from "@tanstack/react-query";
+import {
+  fetchAwaitingReview,
+  fetchMyPRs,
+  fetchTurnaround,
+  isCiFailed,
+  type AwaitingReviewPR,
+  type PRSummary,
+} from "./lib/github";
+import {
+  BLOCKING_THRESHOLD_DAYS,
+  OLDEST_DANGER_DAYS,
+  POLL_HIDDEN_MS,
+  POLL_INSIGHTS_MS,
+  POLL_LINEAR_MS,
+  POLL_TURNAROUND_MS,
+} from "./lib/constants";
+import type { NextAction } from "./lib/types";
 import {
   loadSeen,
   loadSettings,
   saveSeen,
   saveSettings,
+  type SeenEntry,
   type SeenMap,
   type Settings,
 } from "./lib/storage";
 import { setFaviconBadge } from "./lib/favicon";
 import { ensureNotifyPermission, notify } from "./lib/notify";
+import { useRoute } from "./lib/router";
+import { useIsVisible } from "./lib/useVisibility";
+import { ActivityPanel } from "./components/ActivityPanel";
+import { CheatsheetOverlay } from "./components/CheatsheetOverlay";
+import { InsightsPanel } from "./components/InsightsPanel";
+import { LinearPanel } from "./components/LinearPanel";
+import { SettingsModal } from "./components/SettingsModal";
+import { useKeyboardShortcuts } from "./lib/useKeyboardShortcuts";
 import "./App.css";
+
+function ageDescription(updatedAt: string): string {
+  const ms = Date.now() - new Date(updatedAt).getTime();
+  const h = Math.floor(ms / 3_600_000);
+  if (h < 24) return `${h}H AGO`;
+  const d = Math.floor(h / 24);
+  return `${d}D AGO`;
+}
 
 function relativeTime(iso: string): string {
   const diffMs = Date.now() - new Date(iso).getTime();
@@ -115,82 +149,157 @@ function ciIcon(state: PRSummary["ciState"]) {
 }
 
 export default function App() {
+  const route = useRoute();
+  const isVisible = useIsVisible();
   const [settings, setSettings] = useState<Settings>(loadSettings);
-  const [prs, setPrs] = useState<PRSummary[]>([]);
   const [seen, setSeen] = useState<SeenMap>(loadSeen);
-  const [login, setLogin] = useState<string>("");
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [lastFetch, setLastFetch] = useState<number | null>(null);
+  const [showCheatsheet, setShowCheatsheet] = useState(false);
+  const [scope, setScope] = useState<"authored" | "awaiting">("authored");
   const seenRef = useRef(seen);
-  seenRef.current = seen;
-
-  const configured = settings.token && settings.owner && settings.repo;
-
-  const refresh = useCallback(async () => {
-    if (!configured) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const { login: viewer, prs: fresh } = await fetchMyPRs(
-        settings.token,
-        settings.owner,
-        settings.repo,
-      );
-      setLogin(viewer);
-      setPrs(fresh);
-      setLastFetch(Date.now());
-
-      const prior = seenRef.current;
-      const next: SeenMap = { ...prior };
-
-      for (const pr of fresh) {
-        if (!(pr.number in prior)) {
-          next[pr.number] = pr.totalCommentCount;
-          continue;
-        }
-        const delta = pr.totalCommentCount - prior[pr.number];
-        if (delta > 0) {
-          notify(
-            `PR #${pr.number}: ${delta} new comment${delta === 1 ? "" : "s"}`,
-            pr.title,
-            pr.url,
-          );
-        }
-      }
-      for (const key of Object.keys(next)) {
-        if (!fresh.some((p) => String(p.number) === key)) delete next[Number(key)];
-      }
-
-      setSeen(next);
-      saveSeen(next);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setLoading(false);
-    }
-  }, [configured, settings.token, settings.owner, settings.repo]);
-
   useEffect(() => {
-    if (!configured) return;
-    void refresh();
-    const id = setInterval(refresh, settings.intervalSec * 1000);
-    return () => clearInterval(id);
-  }, [configured, settings.intervalSec, refresh]);
+    seenRef.current = seen;
+  }, [seen]);
+
+  const activityIntervalMs = isVisible ? settings.intervalSec * 1000 : POLL_HIDDEN_MS;
+  const configured = Boolean(settings.token && settings.owner && settings.repo);
+
+  const { data, error, isFetching, dataUpdatedAt, refetch } = useQuery({
+    queryKey: ["prs", settings.owner, settings.repo],
+    queryFn: () => fetchMyPRs(settings.token, settings.owner, settings.repo),
+    refetchInterval: settings.intervalSec * 1000,
+    enabled: configured,
+  });
+
+  const viewer = data?.viewer ?? { login: "", name: null, avatarUrl: "" };
+  const login = viewer.login;
+  const prs = data?.prs ?? [];
+
+  const awaitingQuery = useQuery({
+    queryKey: ["awaiting", settings.owner, settings.repo, viewer.login],
+    queryFn: () =>
+      fetchAwaitingReview(settings.token, settings.owner, settings.repo, viewer.login),
+    refetchInterval: settings.intervalSec * 1000,
+    enabled: configured && Boolean(viewer.login) && (route === "prs" || route === "insights"),
+  });
+
+  const turnaroundQuery = useQuery({
+    queryKey: ["turnaround", settings.owner, settings.repo],
+    queryFn: () => fetchTurnaround(settings.token, settings.owner, settings.repo),
+    refetchInterval: POLL_TURNAROUND_MS,
+    enabled: configured && Boolean(viewer.login) && (route === "prs" || route === "insights"),
+  });
+
+  const awaitingPRs: AwaitingReviewPR[] = awaitingQuery.data ?? [];
+  const authoredCount = prs.length;
+  const awaitingCount = awaitingQuery.data?.length ?? 0;
+
+  const awaitingSummary = useMemo(() => {
+    const pendingCount = awaitingPRs.length;
+    const blocking3Count = awaitingPRs.filter(
+      (p) => !p.isTeamRequest && p.blockingDays !== null && p.blockingDays >= BLOCKING_THRESHOLD_DAYS,
+    ).length;
+    const nonTeamPRs = awaitingPRs.filter((p) => !p.isTeamRequest && p.blockingDays !== null);
+    const oldestDays =
+      nonTeamPRs.length > 0 ? Math.max(...nonTeamPRs.map((p) => p.blockingDays!)) : null;
+    return { pendingCount, blocking3Count, oldestDays };
+  }, [awaitingPRs]);
 
   useEffect(() => {
     void ensureNotifyPermission();
   }, []);
 
+  useEffect(() => {
+    if (!data) return;
+    const { prs: fresh } = data;
+    const prior = seenRef.current;
+    const next: SeenMap = { ...prior };
+    const tabFocused = typeof document !== "undefined" && document.hasFocus();
+    const onPrsTab = route === "prs";
+    const shouldNotify = !(tabFocused && onPrsTab);
+
+    for (const pr of fresh) {
+      const snapshot: SeenEntry = {
+        totalComments: pr.totalCommentCount,
+        latestReviewSubmittedAt: pr.latestReviewSubmittedAt,
+        ciState: pr.ciState,
+      };
+      if (!(pr.number in prior)) {
+        next[pr.number] = snapshot;
+        continue;
+      }
+      const p = prior[pr.number];
+      const commentDelta = pr.totalCommentCount - p.totalComments;
+      if (shouldNotify && commentDelta > 0) {
+        notify(
+          `PR #${pr.number}: ${commentDelta} new comment${commentDelta === 1 ? "" : "s"}`,
+          pr.title,
+          pr.url,
+        );
+      }
+      const reviewAdvanced =
+        pr.latestReviewSubmittedAt !== null &&
+        (p.latestReviewSubmittedAt === null ||
+          pr.latestReviewSubmittedAt > p.latestReviewSubmittedAt);
+      if (shouldNotify && reviewAdvanced) {
+        notify(`PR #${pr.number}: new review`, pr.title, pr.url);
+      }
+      const ciTurnedBad =
+        pr.ciState !== null &&
+        isCiFailed(pr.ciState) &&
+        (p.ciState === null || !isCiFailed(p.ciState));
+      if (shouldNotify && ciTurnedBad) {
+        notify(`PR #${pr.number}: CI failed`, pr.title, pr.url);
+      }
+      next[pr.number] = snapshot;
+    }
+    for (const key of Object.keys(next)) {
+      if (!fresh.some((p) => String(p.number) === key)) delete next[Number(key)];
+    }
+
+    // Skip no-op writes to avoid triggering re-renders
+    const prevSeen = seenRef.current;
+    const changed =
+      Object.keys(next).length !== Object.keys(prevSeen).length ||
+      Object.keys(next).some((k) => {
+        const num = Number(k);
+        const a = next[num];
+        const b = prevSeen[num];
+        if (!b) return true;
+        return (
+          a.totalComments !== b.totalComments ||
+          a.latestReviewSubmittedAt !== b.latestReviewSubmittedAt ||
+          a.ciState !== b.ciState
+        );
+      });
+
+    if (changed) {
+      setSeen(next);
+      saveSeen(next);
+    }
+  }, [data?.prs, dataUpdatedAt, route]);
+
   const unreadByPr = useMemo(() => {
-    const map: Record<number, number> = {};
+    const map: Record<number, { unread: boolean; count: number }> = {};
     let total = 0;
     for (const pr of prs) {
-      const baseline = seen[pr.number] ?? pr.totalCommentCount;
-      const u = Math.max(0, pr.totalCommentCount - baseline);
-      map[pr.number] = u;
-      total += u;
+      const prior = seen[pr.number];
+      if (!prior) {
+        map[pr.number] = { unread: false, count: 0 };
+        continue;
+      }
+      const commentDelta = Math.max(0, pr.totalCommentCount - prior.totalComments);
+      const reviewAdvanced =
+        pr.latestReviewSubmittedAt !== null &&
+        (prior.latestReviewSubmittedAt === null ||
+          pr.latestReviewSubmittedAt > prior.latestReviewSubmittedAt);
+      const ciTurnedBad =
+        pr.ciState !== null &&
+        isCiFailed(pr.ciState) &&
+        (prior.ciState === null || !isCiFailed(prior.ciState));
+      const unread = commentDelta > 0 || reviewAdvanced || ciTurnedBad;
+      map[pr.number] = { unread, count: commentDelta };
+      total += commentDelta;
     }
     return { map, total };
   }, [prs, seen]);
@@ -199,28 +308,116 @@ export default function App() {
     setFaviconBadge(unreadByPr.total);
   }, [unreadByPr.total]);
 
-  const markRead = (prNumber: number, currentCount: number) => {
-    const next = { ...seenRef.current, [prNumber]: currentCount };
-    setSeen(next);
-    saveSeen(next);
-  };
+  useEffect(() => {
+    const prefix = unreadByPr.total > 0 ? `(${unreadByPr.total}) ` : "";
+    document.title = `${prefix}PR Dashboard`;
+  }, [unreadByPr.total]);
 
-  const markAllRead = () => {
-    const next: SeenMap = {};
-    for (const pr of prs) next[pr.number] = pr.totalCommentCount;
+  const nextAction = useMemo((): NextAction | null => {
+    const authored = data?.prs ?? [];
+    const awaiting = awaitingQuery.data ?? [];
+
+    // Priority 1: PR I authored, CHANGES_REQUESTED + unread comment
+    for (const pr of authored) {
+      if (pr.effectiveReview === "CHANGES_REQUESTED" && (unreadByPr.map[pr.number]?.count ?? 0) > 0) {
+        return { prNumber: pr.number, prTitle: pr.title, prUrl: pr.url, label: "CHANGES REQUESTED", ageDescription: ageDescription(pr.updatedAt) };
+      }
+    }
+
+    // Priority 2: PR I authored, APPROVED + CI SUCCESS + not yet merged
+    for (const pr of authored) {
+      if (pr.effectiveReview === "APPROVED" && pr.ciState === "SUCCESS") {
+        return { prNumber: pr.number, prTitle: pr.title, prUrl: pr.url, label: "READY TO MERGE", ageDescription: ageDescription(pr.updatedAt) };
+      }
+    }
+
+    // Priority 3: PR awaiting my review, oldest blocking
+    if (awaiting.length > 0) {
+      const oldest = awaiting.reduce((a, b) =>
+        (a.blockingDays ?? 0) > (b.blockingDays ?? 0) ? a : b
+      );
+      return { prNumber: oldest.number, prTitle: oldest.title, prUrl: oldest.url, label: "AWAITING YOUR REVIEW", ageDescription: ageDescription(oldest.updatedAt) };
+    }
+
+    // Priority 4: PR I authored with unread comments
+    for (const pr of authored) {
+      if ((unreadByPr.map[pr.number]?.count ?? 0) > 0) {
+        return { prNumber: pr.number, prTitle: pr.title, prUrl: pr.url, label: "NEW COMMENTS", ageDescription: ageDescription(pr.updatedAt) };
+      }
+    }
+
+    return null;
+  }, [data?.prs, awaitingQuery.data, unreadByPr.map]);
+
+  const markRead = useCallback((pr: PRSummary) => {
+    const entry: SeenEntry = {
+      totalComments: pr.totalCommentCount,
+      latestReviewSubmittedAt: pr.latestReviewSubmittedAt,
+      ciState: pr.ciState,
+    };
+    const next = { ...seenRef.current, [pr.number]: entry };
     setSeen(next);
     saveSeen(next);
-  };
+  }, []);
+
+  useKeyboardShortcuts({
+    onRefresh: () => void refetch(),
+    onTab: (tab) => {
+      window.location.hash = `#/${tab}`;
+    },
+    onSettings: () => setShowSettings(true),
+    onCheatsheet: () => setShowCheatsheet(true),
+  });
+
+  const markAllRead = useCallback(() => {
+    const next: SeenMap = {};
+    for (const pr of prs) {
+      next[pr.number] = {
+        totalComments: pr.totalCommentCount,
+        latestReviewSubmittedAt: pr.latestReviewSubmittedAt,
+        ciState: pr.ciState,
+      };
+    }
+    setSeen(next);
+    saveSeen(next);
+  }, [prs]);
 
   const handlePrClick = (e: React.MouseEvent<HTMLAnchorElement>, pr: PRSummary) => {
     if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
     e.preventDefault();
-    markRead(pr.number, pr.totalCommentCount);
+    markRead(pr);
     window.open(pr.url, "_blank", "noopener,noreferrer");
   };
 
+  const errorMessage = error instanceof Error ? error.message : error ? String(error) : null;
+  const lastFetch = dataUpdatedAt > 0 ? dataUpdatedAt : null;
+  const tabPrsCount = authoredCount + awaitingCount;
+
+  const anyError = Boolean(error ?? awaitingQuery.error ?? turnaroundQuery.error);
+  const liveState: "live" | "paused" | "error" = !configured
+    ? "paused"
+    : !isVisible
+      ? "paused"
+      : anyError
+        ? "error"
+        : "live";
+
   return (
     <div className="app">
+      {showSettings && (
+        <SettingsModal
+          settings={settings}
+          onSave={(s) => {
+            setSettings(s);
+            saveSettings(s);
+            setShowSettings(false);
+          }}
+          onClose={() => setShowSettings(false)}
+        />
+      )}
+      {showCheatsheet && (
+        <CheatsheetOverlay open={showCheatsheet} onClose={() => setShowCheatsheet(false)} />
+      )}
       <header className="topbar">
         <div className="topbar-inner">
           <div className="brand">
@@ -231,11 +428,19 @@ export default function App() {
             {login && <span className="brand-user">@{login}</span>}
           </div>
           <div className="topbar-actions">
+            <span className={`live-pill live-pill-${liveState}`}>
+              <span className="live-dot" />
+              {liveState.toUpperCase()}
+            </span>
             {lastFetch && (
               <span className="ts">Updated {relativeTime(new Date(lastFetch).toISOString())}</span>
             )}
-            <button className="btn btn-ghost" onClick={refresh} disabled={!configured || loading}>
-              {loading ? "Refreshing…" : "Refresh"}
+            <button
+              className="btn btn-ghost"
+              onClick={() => void refetch()}
+              disabled={!configured || isFetching}
+            >
+              {isFetching ? "Refreshing…" : "Refresh"}
             </button>
             <button
               className="btn btn-ghost"
@@ -251,131 +456,360 @@ export default function App() {
         </div>
         {configured && (
           <div className="subbar">
-            <span className="repo-crumb">
+            <a
+              className="repo-crumb"
+              href={`https://github.com/${settings.owner}/${settings.repo}`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
               {settings.owner}
               <span className="slash">/</span>
               <strong>{settings.repo}</strong>
-            </span>
+            </a>
           </div>
         )}
+        <nav className="tabs">
+          <div className="tabs-row">
+            <a
+              href="#/prs"
+              className={`tab${route === "prs" ? " tab-nav-active" : ""}`}
+              aria-current={route === "prs" ? "page" : undefined}
+            >
+              PRS <span className="tab-count">{tabPrsCount || ""}</span>
+            </a>
+            <a
+              href="#/activity"
+              className={`tab${route === "activity" ? " tab-nav-active" : ""}`}
+              aria-current={route === "activity" ? "page" : undefined}
+            >
+              ACTIVITY
+            </a>
+            <a
+              href="#/insights"
+              className={`tab${route === "insights" ? " tab-nav-active" : ""}`}
+              aria-current={route === "insights" ? "page" : undefined}
+            >
+              INSIGHTS
+            </a>
+            <a
+              href="#/linear"
+              className={`tab${route === "linear" ? " tab-nav-active" : ""}`}
+              aria-current={route === "linear" ? "page" : undefined}
+            >
+              LINEAR
+            </a>
+          </div>
+        </nav>
       </header>
 
-      <main className="main">
-        {showSettings && (
-          <SettingsPanel
-            settings={settings}
-            onSave={(s) => {
-              setSettings(s);
-              saveSettings(s);
-              setShowSettings(false);
-            }}
-            onClose={() => setShowSettings(false)}
-          />
-        )}
+      {route === "prs" && (
+        <main className="main">
+          {errorMessage && <div className="error">{errorMessage}</div>}
 
-        {error && <div className="error">{error}</div>}
-
-        {!configured && !showSettings && (
-          <div className="empty">
-            <p>Configure your GitHub PAT and target repo to start.</p>
-            <button className="btn btn-primary" onClick={() => setShowSettings(true)}>
-              Open settings
-            </button>
-          </div>
-        )}
-
-        {configured && (
-          <div className="pr-panel">
-            <div className="pr-panel-header">
-              <div className="filter-tabs">
-                <span className="tab tab-active">
-                  <PrIcon state="open" />
-                  <strong>{prs.length}</strong> Open
-                </span>
-                <span className="tab tab-muted">
-                  <CheckIcon /> Closed
-                </span>
-              </div>
-              <div className="filter-spacers">
-                <span className="filter-stub">
-                  Newest <Caret />
-                </span>
-              </div>
+          {!configured && (
+            <div className="empty">
+              <p>Configure your GitHub PAT and target repo to start.</p>
+              <button className="btn btn-primary" onClick={() => setShowSettings(true)}>
+                Open settings
+              </button>
             </div>
+          )}
 
-            <ul className="pr-list">
-              {prs.map((pr) => {
-                const unread = unreadByPr.map[pr.number] ?? 0;
-                const created = relativeTime(pr.updatedAt);
-                return (
-                  <li
-                    key={pr.number}
-                    className={`pr-row ${unread > 0 ? "is-unread" : ""}`}
-                  >
-                    <div className="pr-icon-col">
-                      <PrIcon state={pr.isDraft ? "draft" : "open"} />
-                    </div>
-                    <div className="pr-body">
-                      <div className="pr-title-line">
-                        <a
-                          className="pr-link"
-                          href={pr.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={(e) => handlePrClick(e, pr)}
-                        >
-                          {pr.title}
-                        </a>
-                        {pr.isDraft && <span className="label label-muted">Draft</span>}
-                        {reviewBadge(pr)}
-                      </div>
-                      <div className="pr-meta-line">
-                        <span className="meta">
-                          {settings.owner}/{settings.repo}#{pr.number}
-                        </span>
-                        <span className="meta-sep">·</span>
-                        <span className="meta">opened {created}</span>
-                        {pr.ciState && (
-                          <>
-                            <span className="meta-sep">·</span>
-                            <span className="meta-ci">{ciIcon(pr.ciState)}</span>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                    <div className="pr-right">
-                      {unread > 0 && (
-                        <button
-                          className="unread-bubble"
-                          title={`${unread} new — click to mark read`}
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            markRead(pr.number, pr.totalCommentCount);
-                          }}
-                          aria-label={`${unread} new comments, click to mark read`}
-                        >
-                          {unread > 99 ? "99+" : unread}
-                        </button>
-                      )}
-                      {pr.totalCommentCount > 0 && (
-                        <span className="comment-count" title="Total comments">
-                          <CommentIcon />
-                          <span>{pr.totalCommentCount}</span>
-                        </span>
-                      )}
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
+          {configured && (
+            <>
+              <div className="scope-toggle">
+                <button
+                  className="scope-btn"
+                  aria-pressed={scope === "authored"}
+                  onClick={() => setScope("authored")}
+                >
+                  Authored <span className="scope-count">{authoredCount}</span>
+                </button>
+                <button
+                  className="scope-btn"
+                  aria-pressed={scope === "awaiting"}
+                  onClick={() => setScope("awaiting")}
+                >
+                  Awaiting your review <span className="scope-count">{awaitingCount}</span>
+                </button>
+              </div>
 
-            {prs.length === 0 && !loading && (
-              <div className="pr-empty">No open PRs authored by you.</div>
-            )}
-          </div>
-        )}
-      </main>
+              {scope === "authored" && (
+                <div className="pr-panel">
+                  <div className="pr-panel-header">
+                    <div className="filter-tabs">
+                      <span className="tab tab-active">
+                        <PrIcon state="open" />
+                        <strong>{prs.length}</strong> Open
+                      </span>
+                      <span className="tab tab-muted">
+                        <CheckIcon /> Closed
+                      </span>
+                    </div>
+                    <div className="filter-spacers">
+                      <span className="filter-stub">
+                        Newest <Caret />
+                      </span>
+                    </div>
+                  </div>
+
+                  <ul className="pr-list">
+                    {prs.map((pr) => {
+                      const unreadEntry = unreadByPr.map[pr.number];
+                      const isUnread = unreadEntry?.unread ?? false;
+                      const unreadCount = unreadEntry?.count ?? 0;
+                      const created = relativeTime(pr.updatedAt);
+                      return (
+                        <li key={pr.number} className={`pr-row ${isUnread ? "is-unread" : ""}`}>
+                          <div className="pr-icon-col">
+                            <PrIcon state={pr.isDraft ? "draft" : "open"} />
+                          </div>
+                          <div className="pr-body">
+                            <div className="pr-title-line">
+                              <a
+                                className="pr-link"
+                                href={pr.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={(e) => handlePrClick(e, pr)}
+                              >
+                                {pr.title}
+                              </a>
+                              {pr.isDraft && <span className="label label-muted">Draft</span>}
+                              {reviewBadge(pr)}
+                            </div>
+                            <div className="pr-meta-line">
+                              <span className="meta">
+                                {settings.owner}/{settings.repo}#{pr.number}
+                              </span>
+                              <span className="meta-sep">·</span>
+                              <span className="meta">opened {created}</span>
+                              {pr.ciState && (
+                                <>
+                                  <span className="meta-sep">·</span>
+                                  <span className="meta-ci">{ciIcon(pr.ciState)}</span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                          <div className="pr-right">
+                            {unreadCount > 0 && (
+                              <button
+                                className="unread-bubble"
+                                title={`${unreadCount} new comment${unreadCount === 1 ? "" : "s"} — click to mark read`}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  markRead(pr);
+                                }}
+                                aria-label={`${unreadCount} new comment${unreadCount === 1 ? "" : "s"}, click to mark read`}
+                              >
+                                {unreadCount > 99 ? "99+" : unreadCount}
+                              </button>
+                            )}
+                            {pr.totalCommentCount > 0 && (
+                              <span className="comment-count" title="Total comments">
+                                <CommentIcon />
+                                <span>{pr.totalCommentCount}</span>
+                              </span>
+                            )}
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+
+                  {prs.length === 0 && !isFetching && (
+                    <div className="pr-empty">No open PRs authored by you.</div>
+                  )}
+                </div>
+              )}
+
+              {scope === "awaiting" && awaitingQuery.data && (
+                <div className="summary-bar">
+                  <div className="summary-cell">
+                    <div className="summary-label">PENDING</div>
+                    <div
+                      className={`summary-value mono ${awaitingSummary.pendingCount > 0 ? "accent" : ""}`}
+                    >
+                      {String(awaitingSummary.pendingCount).padStart(2, "0")}
+                    </div>
+                  </div>
+                  <div className="summary-cell">
+                    <div className="summary-label">{`BLOCKING ≥ ${BLOCKING_THRESHOLD_DAYS}D`}</div>
+                    <div
+                      className={`summary-value mono ${awaitingSummary.blocking3Count > 0 ? "danger" : ""}`}
+                    >
+                      {String(awaitingSummary.blocking3Count).padStart(2, "0")}
+                    </div>
+                  </div>
+                  <div className="summary-cell">
+                    <div className="summary-label">AVG TURNAROUND</div>
+                    <div className="summary-value mono">
+                      {turnaroundQuery.data == null
+                        ? "—"
+                        : turnaroundQuery.data.avgDays === null
+                          ? "—"
+                          : turnaroundQuery.data.avgDays < 10
+                            ? `${turnaroundQuery.data.avgDays.toFixed(1)}`
+                            : `${Math.round(turnaroundQuery.data.avgDays)}`}
+                      {turnaroundQuery.data?.avgDays != null && (
+                        <span className="summary-unit">D</span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="summary-cell">
+                    <div className="summary-label">OLDEST</div>
+                    <div
+                      className={`summary-value mono ${awaitingSummary.oldestDays !== null && awaitingSummary.oldestDays >= OLDEST_DANGER_DAYS ? "danger" : ""}`}
+                    >
+                      {awaitingSummary.oldestDays !== null ? (
+                        <>
+                          {awaitingSummary.oldestDays}
+                          <span className="summary-unit">D</span>
+                        </>
+                      ) : (
+                        "—"
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {scope === "awaiting" && (
+                <div className="pr-panel">
+                  <ul className="pr-list">
+                    {awaitingQuery.isFetching && !awaitingQuery.data && (
+                      <li className="pr-row pr-row-loading">
+                        <span>Loading…</span>
+                      </li>
+                    )}
+                    {awaitingPRs.map((pr) => {
+                      const isBlocking =
+                        !pr.isTeamRequest && pr.blockingDays !== null && pr.blockingDays >= BLOCKING_THRESHOLD_DAYS;
+                      const created = relativeTime(pr.updatedAt);
+                      const unreadCount = unreadByPr.map[pr.number]?.count ?? 0;
+                      return (
+                        <li
+                          key={pr.number}
+                          className={`pr-row${isBlocking ? " is-blocking" : ""}`}
+                        >
+                          <div className="pr-icon-col">
+                            <PrIcon state={pr.isDraft ? "draft" : "open"} />
+                          </div>
+                          <div className="pr-body">
+                            <div className="pr-title-line">
+                              <a
+                                className="pr-link"
+                                href={pr.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                {pr.title}
+                              </a>
+                              {pr.isDraft && <span className="label label-muted">Draft</span>}
+                              {isBlocking && (
+                                <span className="tag tag-blocking">
+                                  ◆ BLOCKING {pr.blockingDays}D
+                                </span>
+                              )}
+                            </div>
+                            <div className="pr-meta-line">
+                              <span className="meta">
+                                {settings.owner}/{settings.repo}#{pr.number}
+                              </span>
+                              <span className="meta-sep">·</span>
+                              <span className="meta">updated {created}</span>
+                              {pr.ciState && (
+                                <>
+                                  <span className="meta-sep">·</span>
+                                  <span className="meta-ci">{ciIcon(pr.ciState)}</span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                          <div className="pr-right">
+                            {unreadCount > 0 && (
+                              <span className="unread-bubble" title={`${unreadCount} new comment${unreadCount === 1 ? "" : "s"}`}>
+                                {unreadCount > 99 ? "99+" : unreadCount}
+                              </span>
+                            )}
+                            {pr.totalCommentCount > 0 && (
+                              <span className="comment-count" title="Total comments">
+                                <CommentIcon />
+                                <span>{pr.totalCommentCount}</span>
+                              </span>
+                            )}
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+
+                  {!awaitingQuery.isFetching && awaitingPRs.length === 0 && (
+                    <div className="pr-empty">Nothing awaiting your review.</div>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+        </main>
+      )}
+      {route === "activity" && (
+        <main className="main">
+          <ActivityPanel
+            token={settings.token}
+            owner={settings.owner}
+            repo={settings.repo}
+            hideBots={settings.hideBots ?? true}
+            intervalMs={activityIntervalMs}
+          />
+        </main>
+      )}
+      {route === "insights" && data?.viewer && data?.repo && (
+        <main className="main">
+          <InsightsPanel
+            token={settings.token}
+            owner={settings.owner}
+            repo={settings.repo}
+            viewerLogin={data.viewer.login}
+            viewerAvatarUrl={data.viewer.avatarUrl}
+            repoCreatedAt={data.repo.createdAt}
+            intervalMs={POLL_INSIGHTS_MS}
+            reviewQueueCount={awaitingQuery.data?.length}
+            reviewQueueOldestDays={
+              awaitingPRs.filter((p) => !p.isTeamRequest && p.blockingDays !== null).length > 0
+                ? Math.max(
+                    ...awaitingPRs
+                      .filter((p) => !p.isTeamRequest && p.blockingDays !== null)
+                      .map((p) => p.blockingDays!),
+                    0,
+                  )
+                : undefined
+            }
+            nextAction={nextAction}
+          />
+        </main>
+      )}
+      {route === "linear" && (
+        <main className="main">
+          {!settings.linearApiKey ? (
+            <div className="empty">
+              <p>Configure your Linear API key in Settings to view tickets.</p>
+              <button className="btn btn-primary" onClick={() => setShowSettings(true)}>
+                Open Settings
+              </button>
+            </div>
+          ) : (
+            <LinearPanel
+              apiKey={settings.linearApiKey}
+              teamId={settings.linearTeamId}
+              authoredPRs={data?.prs ?? []}
+              intervalMs={POLL_LINEAR_MS}
+            />
+          )}
+        </main>
+      )}
     </div>
   );
 }
@@ -385,73 +819,5 @@ function Caret() {
     <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
       <path d="M4.427 7.427l3.396 3.396a.25.25 0 0 0 .354 0l3.396-3.396A.25.25 0 0 0 11.396 7H4.604a.25.25 0 0 0-.177.427Z" />
     </svg>
-  );
-}
-
-function SettingsPanel({
-  settings,
-  onSave,
-  onClose,
-}: {
-  settings: Settings;
-  onSave: (s: Settings) => void;
-  onClose: () => void;
-}) {
-  const [draft, setDraft] = useState<Settings>(settings);
-  return (
-    <div className="settings">
-      <h2>Settings</h2>
-      <label>
-        GitHub Personal Access Token
-        <input
-          type="password"
-          value={draft.token}
-          onChange={(e) => setDraft({ ...draft, token: e.target.value })}
-          placeholder="github_pat_…"
-          autoComplete="off"
-        />
-        <small>
-          Fine-grained PAT with the repo's <code>Pull requests: Read</code> permission.
-          Stored only in your browser localStorage.
-        </small>
-      </label>
-      <label>
-        Repo owner
-        <input
-          type="text"
-          value={draft.owner}
-          onChange={(e) => setDraft({ ...draft, owner: e.target.value })}
-          placeholder="corca-ai"
-        />
-      </label>
-      <label>
-        Repo name
-        <input
-          type="text"
-          value={draft.repo}
-          onChange={(e) => setDraft({ ...draft, repo: e.target.value })}
-          placeholder="corca-app"
-        />
-      </label>
-      <label>
-        Poll interval (seconds)
-        <input
-          type="number"
-          min={15}
-          value={draft.intervalSec}
-          onChange={(e) =>
-            setDraft({ ...draft, intervalSec: Math.max(15, Number(e.target.value) || 60) })
-          }
-        />
-      </label>
-      <div className="settings-actions">
-        <button className="btn btn-ghost" onClick={onClose}>
-          Cancel
-        </button>
-        <button className="btn btn-primary" onClick={() => onSave(draft)}>
-          Save
-        </button>
-      </div>
-    </div>
   );
 }

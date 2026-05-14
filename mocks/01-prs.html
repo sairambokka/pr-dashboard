@@ -1,0 +1,435 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>PRs — PR Dashboard</title>
+<link rel="stylesheet" href="shared.css" />
+<style>
+  .pr-row {
+    grid-template-columns: 56px 28px 1fr 24px 56px 56px 32px;
+    padding: 16px 8px;
+  }
+  .bubble-slot {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 24px;
+  }
+  .pr-row.is-unread {
+    background: linear-gradient(to right, rgba(255,183,0,0.04), transparent 70%);
+    border-left: 2px solid var(--accent);
+    margin-left: -2px;
+  }
+  .pr-row.is-unread .pr-title { color: #fff; }
+  .pr-row.is-blocking {
+    background: linear-gradient(to right, rgba(239,68,68,0.04), transparent 70%);
+    border-left: 2px solid var(--red);
+    margin-left: -2px;
+  }
+  .pr-num-cell .pr-num {
+    font-size: 12px;
+    color: var(--text);
+    font-weight: 500;
+  }
+  .pr-num-cell .pr-num::before { content: "#"; color: var(--muted); }
+  .pr-icon-cell { display: flex; align-items: center; justify-content: center; }
+  .pr-content {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .pr-title-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .pr-meta {
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    display: flex;
+    gap: 10px;
+  }
+  .pr-meta .sep { color: var(--border-2); }
+  .pr-meta .author::before { content: "@"; color: var(--accent); opacity: 0.6; }
+  .ci-col { display: flex; align-items: center; justify-content: center; width: 24px; }
+  .comment-col {
+    font-size: 11px;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .age-col {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    min-width: 64px;
+    text-align: right;
+  }
+  .scope-toggle {
+    display: flex;
+    border: 1px solid var(--border-2);
+    width: fit-content;
+    margin-bottom: 24px;
+  }
+  .scope-btn {
+    padding: 8px 18px;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    background: transparent;
+    border: none;
+    border-right: 1px solid var(--border-2);
+    cursor: pointer;
+    font-family: inherit;
+    transition: color 80ms, background 80ms;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .scope-btn:last-child { border-right: none; }
+  .scope-btn:hover { color: var(--text); }
+  .scope-btn[aria-pressed="true"] {
+    background: var(--accent);
+    color: var(--bg);
+    font-weight: 600;
+  }
+  .scope-btn .scope-count {
+    font-size: 10px;
+    padding: 2px 6px;
+    background: rgba(0,0,0,0.2);
+    color: inherit;
+    min-width: 22px;
+    text-align: center;
+  }
+  .scope-btn[aria-pressed="false"] .scope-count {
+    background: var(--panel);
+    color: var(--muted);
+  }
+  .summary-bar {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1px;
+    background: var(--border);
+    margin-bottom: 32px;
+    border: 1px solid var(--border);
+  }
+  .summary-cell {
+    padding: 16px 20px;
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .summary-label {
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .summary-value {
+    font-size: 22px;
+    color: var(--text);
+    font-weight: 300;
+    line-height: 1;
+  }
+  .summary-value.accent { color: var(--accent); }
+  .summary-value.danger { color: var(--red); }
+  .blocking-old { color: var(--red); font-weight: 600; }
+  .blocking-warn { color: var(--accent); font-weight: 600; }
+  .divider-block {
+    margin-top: 48px;
+    padding-top: 24px;
+    border-top: 1px dashed var(--border-2);
+  }
+  .divider-label {
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+</style>
+</head>
+<body>
+<div class="overlay-scan"></div>
+
+<header class="topbar">
+  <div class="topbar-row">
+    <div class="brand"><span class="brand-mark"></span> PR.DASHBOARD</div>
+    <div class="repo-crumb">corca-dev / <strong>corca-app</strong></div>
+    <div class="user-tag">sairambokka</div>
+    <div class="topbar-actions">
+      <span class="ts">UPDATED 00:42 AGO</span>
+      <span class="live-indicator"><span class="live-dot"></span> LIVE</span>
+      <button class="btn">REFRESH</button>
+      <button class="btn">SETTINGS</button>
+    </div>
+  </div>
+</header>
+
+<nav class="tabs">
+  <div class="tabs-row">
+    <a href="01-prs.html"      class="tab" aria-current="true">PRS <span class="tab-count">15</span></a>
+    <a href="02-activity.html" class="tab">ACTIVITY</a>
+    <a href="03-insights.html" class="tab">INSIGHTS</a>
+    <a href="04-linear.html"   class="tab">LINEAR</a>
+  </div>
+</nav>
+
+<main class="main">
+  <div class="section-head">
+    <div class="section-title">PULL REQUESTS // OPEN</div>
+    <div class="section-meta">SORT: NEWEST</div>
+  </div>
+
+  <div class="scope-toggle">
+    <button class="scope-btn" aria-pressed="true">
+      AUTHORED <span class="scope-count mono">11</span>
+    </button>
+    <button class="scope-btn" aria-pressed="false">
+      AWAITING YOUR REVIEW <span class="scope-count mono">04</span>
+    </button>
+  </div>
+
+  <a href="#" class="row pr-row is-unread">
+    <span class="pr-num-cell"><span class="pr-num mono">2197</span></span>
+    <span class="pr-icon-cell"><svg class="gitpr-icon" viewBox="0 0 16 16" fill="#4ade80"><path d="M1.5 3.25a2.25 2.25 0 1 1 3 2.122v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.25 2.25 0 0 1 1.5 3.25Zm5.677-.177L9.573.677A.25.25 0 0 1 10 .854V2.5h1A2.5 2.5 0 0 1 13.5 5v5.628a2.251 2.251 0 1 1-1.5 0V5a1 1 0 0 0-1-1h-1v1.646a.25.25 0 0 1-.427.177L7.177 3.427a.25.25 0 0 1 0-.354ZM3.75 2.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm0 9.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm8.25.75a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Z"/></svg></span>
+    <span class="pr-content">
+      <span class="pr-title-row">
+        <span class="pr-title">feat: direction-matched inequality phantom hints</span>
+      </span>
+      <span class="pr-meta">
+        <span class="author">sairambokka</span><span class="sep">/</span><span>feat/inequality-phantom</span>
+      </span>
+    </span>
+    <span class="ci-col"><span class="dot dot-fail"></span></span>
+    <span class="comment-col mono">○ 01</span>
+    <span class="age-col mono">02h</span>
+    <span class="bubble-slot"><span class="bubble">3</span></span>
+  </a>
+
+  <a href="#" class="row pr-row is-unread">
+    <span class="pr-num-cell"><span class="pr-num mono">2162</span></span>
+    <span class="pr-icon-cell"><svg class="gitpr-icon" viewBox="0 0 16 16" fill="#4ade80"><path d="M1.5 3.25a2.25 2.25 0 1 1 3 2.122v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.25 2.25 0 0 1 1.5 3.25Zm5.677-.177L9.573.677A.25.25 0 0 1 10 .854V2.5h1A2.5 2.5 0 0 1 13.5 5v5.628a2.251 2.251 0 1 1-1.5 0V5a1 1 0 0 0-1-1h-1v1.646a.25.25 0 0 1-.427.177L7.177 3.427a.25.25 0 0 1 0-.354ZM3.75 2.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm0 9.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm8.25.75a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Z"/></svg></span>
+    <span class="pr-content">
+      <span class="pr-title-row">
+        <span class="pr-title">D-2663: Implement Tailor Series using Sympy</span>
+        <span class="tag tag-approved">▲ APPROVED</span>
+      </span>
+      <span class="pr-meta">
+        <span class="author">sairambokka</span><span class="sep">/</span><span>feat/tailor-series</span>
+      </span>
+    </span>
+    <span class="ci-col"><span class="dot dot-fail"></span></span>
+    <span class="comment-col mono">○ 19</span>
+    <span class="age-col mono">05h</span>
+    <span class="bubble-slot"><span class="bubble">5</span></span>
+  </a>
+
+  <a href="#" class="row pr-row">
+    <span class="pr-num-cell"><span class="pr-num mono">2185</span></span>
+    <span class="pr-icon-cell"><svg class="gitpr-icon" viewBox="0 0 16 16" fill="#4ade80"><path d="M1.5 3.25a2.25 2.25 0 1 1 3 2.122v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.25 2.25 0 0 1 1.5 3.25Zm5.677-.177L9.573.677A.25.25 0 0 1 10 .854V2.5h1A2.5 2.5 0 0 1 13.5 5v5.628a2.251 2.251 0 1 1-1.5 0V5a1 1 0 0 0-1-1h-1v1.646a.25.25 0 0 1-.427.177L7.177 3.427a.25.25 0 0 1 0-.354ZM3.75 2.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm0 9.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm8.25.75a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Z"/></svg></span>
+    <span class="pr-content">
+      <span class="pr-title-row">
+        <span class="pr-title">D-2646: Inequality solution-set hints (∈ trigger)</span>
+      </span>
+      <span class="pr-meta">
+        <span class="author">sairambokka</span><span class="sep">/</span><span>feat/inequality-set</span>
+      </span>
+    </span>
+    <span class="ci-col"><span class="dot dot-fail"></span></span>
+    <span class="comment-col mono">○ 03</span>
+    <span class="age-col mono">02d</span>
+    <span class="bubble-slot"></span>
+  </a>
+
+  <a href="#" class="row pr-row is-unread">
+    <span class="pr-num-cell"><span class="pr-num mono">2128</span></span>
+    <span class="pr-icon-cell"><svg class="gitpr-icon" viewBox="0 0 16 16" fill="#4ade80"><path d="M1.5 3.25a2.25 2.25 0 1 1 3 2.122v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.25 2.25 0 0 1 1.5 3.25Zm5.677-.177L9.573.677A.25.25 0 0 1 10 .854V2.5h1A2.5 2.5 0 0 1 13.5 5v5.628a2.251 2.251 0 1 1-1.5 0V5a1 1 0 0 0-1-1h-1v1.646a.25.25 0 0 1-.427.177L7.177 3.427a.25.25 0 0 1 0-.354ZM3.75 2.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm0 9.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm8.25.75a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Z"/></svg></span>
+    <span class="pr-content">
+      <span class="pr-title-row">
+        <span class="pr-title">D-2622: Esc key binding should close chat window (Team + Chatbot)</span>
+        <span class="tag tag-changes">▼ CHANGES REQUESTED</span>
+      </span>
+      <span class="pr-meta">
+        <span class="author">sairambokka</span><span class="sep">/</span><span>feat/esc-close-chat</span>
+      </span>
+    </span>
+    <span class="ci-col"><span class="dot dot-fail"></span></span>
+    <span class="comment-col mono">○ 11</span>
+    <span class="age-col mono">01d</span>
+    <span class="bubble-slot"><span class="bubble">2</span></span>
+  </a>
+
+  <a href="#" class="row pr-row">
+    <span class="pr-num-cell"><span class="pr-num mono">2168</span></span>
+    <span class="pr-icon-cell"><svg class="gitpr-icon" viewBox="0 0 16 16" fill="#4ade80"><path d="M1.5 3.25a2.25 2.25 0 1 1 3 2.122v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.25 2.25 0 0 1 1.5 3.25Zm5.677-.177L9.573.677A.25.25 0 0 1 10 .854V2.5h1A2.5 2.5 0 0 1 13.5 5v5.628a2.251 2.251 0 1 1-1.5 0V5a1 1 0 0 0-1-1h-1v1.646a.25.25 0 0 1-.427.177L7.177 3.427a.25.25 0 0 1 0-.354ZM3.75 2.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm0 9.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm8.25.75a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Z"/></svg></span>
+    <span class="pr-content">
+      <span class="pr-title-row">
+        <span class="pr-title">D-2614: Support for degrees in postfix units inside sympy</span>
+      </span>
+      <span class="pr-meta">
+        <span class="author">sairambokka</span><span class="sep">/</span><span>feat/degrees</span>
+      </span>
+    </span>
+    <span class="ci-col"><span class="dot dot-fail"></span></span>
+    <span class="comment-col mono">○ 02</span>
+    <span class="age-col mono">01d</span>
+    <span class="bubble-slot"></span>
+  </a>
+
+  <a href="#" class="row pr-row">
+    <span class="pr-num-cell"><span class="pr-num mono">2147</span></span>
+    <span class="pr-icon-cell"><svg class="gitpr-icon" viewBox="0 0 16 16" fill="#4ade80"><path d="M1.5 3.25a2.25 2.25 0 1 1 3 2.122v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.25 2.25 0 0 1 1.5 3.25Zm5.677-.177L9.573.677A.25.25 0 0 1 10 .854V2.5h1A2.5 2.5 0 0 1 13.5 5v5.628a2.251 2.251 0 1 1-1.5 0V5a1 1 0 0 0-1-1h-1v1.646a.25.25 0 0 1-.427.177L7.177 3.427a.25.25 0 0 1 0-.354ZM3.75 2.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm0 9.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm8.25.75a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Z"/></svg></span>
+    <span class="pr-content">
+      <span class="pr-title-row">
+        <span class="pr-title">D-2655: Update phantomHint suggestion to not trigger for symbol except '='</span>
+      </span>
+      <span class="pr-meta">
+        <span class="author">sairambokka</span><span class="sep">/</span><span>feat/phantom-trigger</span>
+      </span>
+    </span>
+    <span class="ci-col"><span class="dot dot-fail"></span></span>
+    <span class="comment-col mono">○ 02</span>
+    <span class="age-col mono">07d</span>
+    <span class="bubble-slot"></span>
+  </a>
+
+  <a href="#" class="row pr-row">
+    <span class="pr-num-cell"><span class="pr-num mono">2127</span></span>
+    <span class="pr-icon-cell"><svg class="gitpr-icon" viewBox="0 0 16 16" fill="#4ade80"><path d="M1.5 3.25a2.25 2.25 0 1 1 3 2.122v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.25 2.25 0 0 1 1.5 3.25Zm5.677-.177L9.573.677A.25.25 0 0 1 10 .854V2.5h1A2.5 2.5 0 0 1 13.5 5v5.628a2.251 2.251 0 1 1-1.5 0V5a1 1 0 0 0-1-1h-1v1.646a.25.25 0 0 1-.427.177L7.177 3.427a.25.25 0 0 1 0-.354ZM3.75 2.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm0 9.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm8.25.75a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Z"/></svg></span>
+    <span class="pr-content">
+      <span class="pr-title-row">
+        <span class="pr-title">D-2567: Add cursor inside units for continuous typing</span>
+      </span>
+      <span class="pr-meta">
+        <span class="author">sairambokka</span><span class="sep">/</span><span>feat/cursor-units</span>
+      </span>
+    </span>
+    <span class="ci-col"><span class="dot dot-fail"></span></span>
+    <span class="comment-col mono">○ 07</span>
+    <span class="age-col mono">02d</span>
+    <span class="bubble-slot"></span>
+  </a>
+
+  <a href="#" class="row pr-row">
+    <span class="pr-num-cell"><span class="pr-num mono">2145</span></span>
+    <span class="pr-icon-cell"><svg class="gitpr-icon" viewBox="0 0 16 16" fill="#4ade80"><path d="M1.5 3.25a2.25 2.25 0 1 1 3 2.122v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.25 2.25 0 0 1 1.5 3.25Zm5.677-.177L9.573.677A.25.25 0 0 1 10 .854V2.5h1A2.5 2.5 0 0 1 13.5 5v5.628a2.251 2.251 0 1 1-1.5 0V5a1 1 0 0 0-1-1h-1v1.646a.25.25 0 0 1-.427.177L7.177 3.427a.25.25 0 0 1 0-.354ZM3.75 2.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm0 9.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm8.25.75a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Z"/></svg></span>
+    <span class="pr-content">
+      <span class="pr-title-row">
+        <span class="pr-title">D-2656: Fix derivative parsing in sympy for higher order derivatives</span>
+        <span class="tag tag-approved">▲ APPROVED</span>
+      </span>
+      <span class="pr-meta">
+        <span class="author">sairambokka</span><span class="sep">/</span><span>fix/derivative-parsing</span>
+      </span>
+    </span>
+    <span class="ci-col"><span class="dot dot-success"></span></span>
+    <span class="comment-col mono">○ 03</span>
+    <span class="age-col mono">07d</span>
+    <span class="bubble-slot"></span>
+  </a>
+
+  <div class="divider-block">
+    <div class="divider-label">↓ PREVIEW — TOGGLE = AWAITING YOUR REVIEW</div>
+
+    <div class="summary-bar">
+      <div class="summary-cell">
+        <div class="summary-label">PENDING</div>
+        <div class="summary-value accent mono">04</div>
+      </div>
+      <div class="summary-cell">
+        <div class="summary-label">BLOCKING ≥ 3D</div>
+        <div class="summary-value danger mono">02</div>
+      </div>
+      <div class="summary-cell">
+        <div class="summary-label">AVG TURNAROUND</div>
+        <div class="summary-value mono">1.8<span style="font-size:11px; color: var(--muted); margin-left: 4px;">D</span></div>
+      </div>
+      <div class="summary-cell">
+        <div class="summary-label">OLDEST</div>
+        <div class="summary-value danger mono">6<span style="font-size:11px; color: var(--muted); margin-left: 4px;">D</span></div>
+      </div>
+    </div>
+
+    <a href="#" class="row pr-row is-blocking">
+      <span class="pr-num-cell"><span class="pr-num mono">2154</span></span>
+      <span class="pr-icon-cell"><svg class="gitpr-icon" viewBox="0 0 16 16" fill="#4ade80"><path d="M1.5 3.25a2.25 2.25 0 1 1 3 2.122v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.25 2.25 0 0 1 1.5 3.25Zm5.677-.177L9.573.677A.25.25 0 0 1 10 .854V2.5h1A2.5 2.5 0 0 1 13.5 5v5.628a2.251 2.251 0 1 1-1.5 0V5a1 1 0 0 0-1-1h-1v1.646a.25.25 0 0 1-.427.177L7.177 3.427a.25.25 0 0 1 0-.354ZM3.75 2.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm0 9.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm8.25.75a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Z"/></svg></span>
+      <span class="pr-content">
+        <span class="pr-title-row">
+          <span class="pr-title">D-2701: Add OpenSearch index for matrix expressions</span>
+          <span class="tag tag-blocking">◆ BLOCKING 6D</span>
+        </span>
+        <span class="pr-meta">
+          <span class="author">kyeo76</span><span class="sep">/</span><span>feat/opensearch-matrix</span>
+        </span>
+      </span>
+      <span class="ci-col"><span class="dot dot-success"></span></span>
+      <span class="comment-col mono">○ 04</span>
+      <span class="age-col mono blocking-old">6D</span>
+      <span></span>
+      <span></span>
+    </a>
+
+    <a href="#" class="row pr-row is-blocking">
+      <span class="pr-num-cell"><span class="pr-num mono">2178</span></span>
+      <span class="pr-icon-cell"><svg class="gitpr-icon" viewBox="0 0 16 16" fill="#4ade80"><path d="M1.5 3.25a2.25 2.25 0 1 1 3 2.122v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.25 2.25 0 0 1 1.5 3.25Zm5.677-.177L9.573.677A.25.25 0 0 1 10 .854V2.5h1A2.5 2.5 0 0 1 13.5 5v5.628a2.251 2.251 0 1 1-1.5 0V5a1 1 0 0 0-1-1h-1v1.646a.25.25 0 0 1-.427.177L7.177 3.427a.25.25 0 0 1 0-.354ZM3.75 2.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm0 9.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm8.25.75a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Z"/></svg></span>
+      <span class="pr-content">
+        <span class="pr-title-row">
+          <span class="pr-title">D-2682: Refactor TipTap collaborative cursor handling</span>
+          <span class="tag tag-blocking">◆ BLOCKING 4D</span>
+        </span>
+        <span class="pr-meta">
+          <span class="author">heeyoung-kim</span><span class="sep">/</span><span>refactor/tiptap-cursor</span>
+        </span>
+      </span>
+      <span class="ci-col"><span class="dot dot-success"></span></span>
+      <span class="comment-col mono">○ 12</span>
+      <span class="age-col mono blocking-old">4D</span>
+      <span></span>
+      <span></span>
+    </a>
+
+    <a href="#" class="row pr-row">
+      <span class="pr-num-cell"><span class="pr-num mono">2192</span></span>
+      <span class="pr-icon-cell"><svg class="gitpr-icon" viewBox="0 0 16 16" fill="#4ade80"><path d="M1.5 3.25a2.25 2.25 0 1 1 3 2.122v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.25 2.25 0 0 1 1.5 3.25Zm5.677-.177L9.573.677A.25.25 0 0 1 10 .854V2.5h1A2.5 2.5 0 0 1 13.5 5v5.628a2.251 2.251 0 1 1-1.5 0V5a1 1 0 0 0-1-1h-1v1.646a.25.25 0 0 1-.427.177L7.177 3.427a.25.25 0 0 1 0-.354ZM3.75 2.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm0 9.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm8.25.75a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Z"/></svg></span>
+      <span class="pr-content">
+        <span class="pr-title-row">
+          <span class="pr-title">D-2695: Rails: bump anycable, fix flaky channel reconnect</span>
+        </span>
+        <span class="pr-meta">
+          <span class="author">park-jin</span><span class="sep">/</span><span>fix/anycable-reconnect</span>
+        </span>
+      </span>
+      <span class="ci-col"><span class="dot dot-fail"></span></span>
+      <span class="comment-col mono">○ 02</span>
+      <span class="age-col mono blocking-warn">2D</span>
+      <span></span>
+      <span></span>
+    </a>
+
+    <a href="#" class="row pr-row">
+      <span class="pr-num-cell"><span class="pr-num mono">2200</span></span>
+      <span class="pr-icon-cell"><svg class="gitpr-icon" viewBox="0 0 16 16" fill="#4ade80"><path d="M1.5 3.25a2.25 2.25 0 1 1 3 2.122v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.25 2.25 0 0 1 1.5 3.25Zm5.677-.177L9.573.677A.25.25 0 0 1 10 .854V2.5h1A2.5 2.5 0 0 1 13.5 5v5.628a2.251 2.251 0 1 1-1.5 0V5a1 1 0 0 0-1-1h-1v1.646a.25.25 0 0 1-.427.177L7.177 3.427a.25.25 0 0 1 0-.354ZM3.75 2.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm0 9.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm8.25.75a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Z"/></svg></span>
+      <span class="pr-content">
+        <span class="pr-title-row">
+          <span class="pr-title">D-2710: Storybook: add interaction tests for InlineNodeField</span>
+        </span>
+        <span class="pr-meta">
+          <span class="author">heeyoung-kim</span><span class="sep">/</span><span>test/inline-node-stories</span>
+        </span>
+      </span>
+      <span class="ci-col"><span class="dot dot-success"></span></span>
+      <span class="comment-col mono">○ 00</span>
+      <span class="age-col mono">04h</span>
+      <span></span>
+      <span></span>
+    </a>
+  </div>
+
+</main>
+
+</body>
+</html>
