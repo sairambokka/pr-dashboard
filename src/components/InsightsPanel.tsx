@@ -307,8 +307,8 @@ export function InsightsPanel({
     enabled: Boolean(token && owner && repo),
   });
 
-  const contributorsCacheKey = `pr-dashboard.contributors.${owner}/${repo}`;
-  const commitActivityCacheKey = `pr-dashboard.commitActivity.${owner}/${repo}`;
+  const contributorsCacheKey = `pr-dashboard.v2.contributors.${owner}/${repo}`;
+  const commitActivityCacheKey = `pr-dashboard.v2.commitActivity.${owner}/${repo}`;
 
   const { data: contributors, error: contributorsError } = useQuery({
     queryKey: ["contributors", owner, repo],

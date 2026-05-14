@@ -1,7 +1,6 @@
 // ── Insights data clients ─────────────────────────────────────────────────────
 
 const GQL_URL = "https://api.github.com/graphql";
-const REST_BASE = "https://api.github.com";
 
 // ── Period helper ─────────────────────────────────────────────────────────────
 
@@ -84,43 +83,13 @@ async function gqlSearch<T>(
   return json.data;
 }
 
-// ── Shared REST retry helper ──────────────────────────────────────────────────
+// ── Errors ────────────────────────────────────────────────────────────────────
 
 export class StatsComputingError extends Error {
   constructor(message = "Stats still computing — GitHub will finish in a few minutes") {
     super(message);
     this.name = "StatsComputingError";
   }
-}
-
-async function restGetWithRetry<T>(url: string, token: string): Promise<T> {
-  const headers = {
-    Authorization: `Bearer ${token}`,
-    Accept: "application/vnd.github+json",
-    "X-GitHub-Api-Version": "2022-11-28",
-  };
-
-  const delays = [1000, 2000, 4000, 8000];
-
-  for (let attempt = 0; attempt <= delays.length; attempt++) {
-    const res = await fetch(url, { headers });
-
-    if (res.status === 202) {
-      if (attempt < delays.length) {
-        await new Promise((resolve) => setTimeout(resolve, delays[attempt]));
-        continue;
-      }
-      throw new StatsComputingError();
-    }
-
-    if (!res.ok) {
-      throw new Error(`GitHub REST ${res.status}: ${await res.text()}`);
-    }
-
-    return (await res.json()) as T;
-  }
-
-  throw new StatsComputingError();
 }
 
 // ── Insights PRs ─────────────────────────────────────────────────────────────
@@ -343,10 +312,14 @@ export async function fetchRepoStats(
   return { openCount, oldestOpenDays, staleCount };
 }
 
-// ── Contributors (REST) ───────────────────────────────────────────────────────
+// ── Contributors (GraphQL) ────────────────────────────────────────────────────
+//
+// REST /stats/contributors blocks on a slow async job (202 first call). We
+// instead use defaultBranchRef.history paginated, filtered by the viewer's
+// user id. Synchronous. Typically 1-2 seconds.
 
 export interface ContributorWeek {
-  w: number; // week unix timestamp seconds
+  w: number; // week unix timestamp seconds (Sunday start)
   a: number; // additions
   d: number; // deletions
   c: number; // commits
@@ -354,31 +327,151 @@ export interface ContributorWeek {
 
 export interface Contributor {
   login: string;
-  total: number; // total commits
+  total: number;
   weeks: ContributorWeek[];
 }
 
-type RawContributor = {
-  author: { login: string };
-  total: number;
-  weeks: ContributorWeek[];
-};
+interface GqlCommitNode {
+  oid: string;
+  committedDate: string;
+  additions: number;
+  deletions: number;
+  author: { user: { login: string } | null } | null;
+}
 
+interface GqlHistory {
+  pageInfo: { endCursor: string | null; hasNextPage: boolean };
+  nodes: GqlCommitNode[];
+}
+
+interface GqlHistoryResp {
+  repository: {
+    defaultBranchRef: {
+      target: { history?: GqlHistory } | null;
+    } | null;
+  };
+}
+
+const HISTORY_QUERY = `
+query Hist($owner: String!, $name: String!, $since: GitTimestamp, $author: ID, $cursor: String) {
+  repository(owner: $owner, name: $name) {
+    defaultBranchRef {
+      target {
+        ... on Commit {
+          history(first: 100, since: $since, author: { id: $author }, after: $cursor) {
+            pageInfo { endCursor hasNextPage }
+            nodes {
+              oid
+              committedDate
+              additions
+              deletions
+              author { user { login } }
+            }
+          }
+        }
+      }
+    }
+  }
+}`;
+
+const HISTORY_NO_AUTHOR_QUERY = `
+query Hist($owner: String!, $name: String!, $since: GitTimestamp, $cursor: String) {
+  repository(owner: $owner, name: $name) {
+    defaultBranchRef {
+      target {
+        ... on Commit {
+          history(first: 100, since: $since, after: $cursor) {
+            pageInfo { endCursor hasNextPage }
+            nodes {
+              oid
+              committedDate
+              additions
+              deletions
+              author { user { login } }
+            }
+          }
+        }
+      }
+    }
+  }
+}`;
+
+function weekStartSeconds(iso: string): number {
+  const d = new Date(iso);
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() - d.getDay()); // Sunday start
+  return Math.floor(d.getTime() / 1000);
+}
+
+async function fetchAllCommits(
+  token: string,
+  owner: string,
+  name: string,
+  since: string,
+  authorId: string | null,
+): Promise<GqlCommitNode[]> {
+  const all: GqlCommitNode[] = [];
+  let cursor: string | null = null;
+  const maxPages = 20; // 2000 commits cap
+  for (let i = 0; i < maxPages; i++) {
+    const variables: Record<string, unknown> = { owner, name, since, cursor };
+    if (authorId !== null) variables.author = authorId;
+    const data: GqlHistoryResp = await gqlSearch<GqlHistoryResp>(
+      token,
+      authorId !== null ? HISTORY_QUERY : HISTORY_NO_AUTHOR_QUERY,
+      variables,
+    );
+    const hist = data.repository.defaultBranchRef?.target?.history;
+    if (!hist) break;
+    all.push(...hist.nodes);
+    if (!hist.pageInfo.hasNextPage) break;
+    cursor = hist.pageInfo.endCursor;
+  }
+  return all;
+}
+
+/**
+ * Fetch viewer's commit history (last 1 year cap). Returns single-element array
+ * with bucketed weekly data. Shape matches legacy REST response so consumers
+ * don't change.
+ */
 export async function fetchContributors(
   token: string,
   owner: string,
   name: string,
 ): Promise<Contributor[]> {
-  const url = `${REST_BASE}/repos/${owner}/${name}/stats/contributors`;
-  const raw = await restGetWithRetry<RawContributor[]>(url, token);
-  return raw.map((c) => ({ login: c.author.login, total: c.total, weeks: c.weeks }));
+  // Resolve viewer + id in one call
+  const viewerResp = await gqlSearch<{ viewer: { id: string; login: string } }>(
+    token,
+    `query { viewer { id login } }`,
+    {},
+  );
+  const viewerId = viewerResp.viewer.id;
+  const viewerLogin = viewerResp.viewer.login;
+
+  // 1 year window
+  const since = new Date(Date.now() - 365 * 86_400_000).toISOString();
+  const commits = await fetchAllCommits(token, owner, name, since, viewerId);
+
+  const byWeek = new Map<number, ContributorWeek>();
+  for (const c of commits) {
+    const w = weekStartSeconds(c.committedDate);
+    if (!byWeek.has(w)) byWeek.set(w, { w, a: 0, d: 0, c: 0 });
+    const bucket = byWeek.get(w)!;
+    bucket.a += c.additions;
+    bucket.d += c.deletions;
+    bucket.c += 1;
+  }
+
+  const weeks = Array.from(byWeek.values()).sort((a, b) => a.w - b.w);
+  return [{ login: viewerLogin, total: commits.length, weeks }];
 }
 
-// ── Commit activity (REST) ────────────────────────────────────────────────────
+// ── Commit activity (GraphQL) ─────────────────────────────────────────────────
 
 export interface CommitWeek {
-  week: number; // unix seconds
-  days: number[]; // 7 daily counts
+  week: number; // unix seconds (Sunday start)
+  days: number[]; // 7 daily counts (Sun..Sat)
   total: number;
 }
 
@@ -387,7 +480,23 @@ export async function fetchCommitActivity(
   owner: string,
   name: string,
 ): Promise<CommitWeek[]> {
-  const url = `${REST_BASE}/repos/${owner}/${name}/stats/commit_activity`;
-  return restGetWithRetry<CommitWeek[]>(url, token);
+  // last 30 days
+  const since = new Date(Date.now() - 30 * 86_400_000).toISOString();
+  const commits = await fetchAllCommits(token, owner, name, since, null);
+
+  const byWeek = new Map<number, CommitWeek>();
+  for (const c of commits) {
+    const d = new Date(c.committedDate);
+    const day = d.getDay(); // 0=Sun
+    const wStart = weekStartSeconds(c.committedDate);
+    if (!byWeek.has(wStart)) {
+      byWeek.set(wStart, { week: wStart, days: [0, 0, 0, 0, 0, 0, 0], total: 0 });
+    }
+    const bucket = byWeek.get(wStart)!;
+    bucket.days[day] += 1;
+    bucket.total += 1;
+  }
+
+  return Array.from(byWeek.values()).sort((a, b) => a.week - b.week);
 }
 
