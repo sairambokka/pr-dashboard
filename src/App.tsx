@@ -22,6 +22,7 @@ import { useRoute } from "./lib/router";
 import { useIsVisible } from "./lib/useVisibility";
 import { ActivityPanel } from "./components/ActivityPanel";
 import { InsightsPanel } from "./components/InsightsPanel";
+import { LinearPanel } from "./components/LinearPanel";
 import { SettingsModal } from "./components/SettingsModal";
 import "./App.css";
 
@@ -746,7 +747,21 @@ export default function App() {
       )}
       {route === "linear" && (
         <main className="main">
-          <p>Coming soon</p>
+          {!settings.linearApiKey ? (
+            <div className="empty">
+              <p>Configure your Linear API key in Settings to view tickets.</p>
+              <button className="btn btn-primary" onClick={() => setShowSettings(true)}>
+                Open Settings
+              </button>
+            </div>
+          ) : (
+            <LinearPanel
+              apiKey={settings.linearApiKey}
+              teamId={settings.linearTeamId}
+              authoredPRs={data?.prs ?? []}
+              intervalMs={5 * 60_000}
+            />
+          )}
         </main>
       )}
     </div>
