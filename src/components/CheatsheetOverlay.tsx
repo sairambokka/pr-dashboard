@@ -1,9 +1,20 @@
+import { useEffect } from "react";
+
 interface Props {
   open: boolean;
   onClose: () => void;
 }
 
 export function CheatsheetOverlay({ open, onClose }: Props) {
+  useEffect(() => {
+    if (!open) return;
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
+  }, [open, onClose]);
+
   if (!open) return null;
   return (
     <div className="modal-backdrop" onClick={onClose}>
