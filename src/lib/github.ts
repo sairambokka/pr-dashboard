@@ -108,6 +108,7 @@ export interface PRSummary {
 export interface AwaitingReviewPR extends PRSummary {
   blockingSinceAt: string | null;
   blockingDays: number | null;
+  isTeamRequest: boolean; // true when only team-requested; blockingDays may be inaccurate
 }
 
 type GqlRequestedReviewer = { login: string } | { name: string; slug: string } | null;
@@ -324,10 +325,16 @@ export async function fetchAwaitingReview(
         .filter((t) => t.reviewerLogin === viewerLogin)
         .map((t) => t.createdAt);
 
+      const isTeamRequest =
+        viewerRequestTimes.length === 0 &&
+        summary.reviewRequestedReviewers.some((r) => r.kind === "team");
+
       let blockingSinceAt: string | null = null;
       if (viewerRequestTimes.length > 0) {
         blockingSinceAt = viewerRequestTimes.reduce((max, t) => (t > max ? t : max));
       } else {
+        // Team-via-mention review requests aren't captured by individual-login timeline filtering.
+        // Falls back to PR createdAt — may overcount blocking days for team-only requests.
         blockingSinceAt = node.createdAt;
       }
 
@@ -336,6 +343,6 @@ export async function fetchAwaitingReview(
           ? Math.floor((now - new Date(blockingSinceAt).getTime()) / 86_400_000)
           : null;
 
-      return { ...summary, blockingSinceAt, blockingDays };
+      return { ...summary, blockingSinceAt, blockingDays, isTeamRequest };
     });
 }

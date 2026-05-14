@@ -503,8 +503,14 @@ export default function App() {
               {scope === "awaiting" && (
                 <div className="pr-panel">
                   <ul className="pr-list">
+                    {awaitingQuery.isFetching && !awaitingQuery.data && (
+                      <li className="pr-row pr-row-loading">
+                        <span>Loading…</span>
+                      </li>
+                    )}
                     {awaitingPRs.map((pr) => {
-                      const isBlocking = pr.blockingDays !== null && pr.blockingDays >= 3;
+                      const isBlocking =
+                        !pr.isTeamRequest && pr.blockingDays !== null && pr.blockingDays >= 3;
                       const created = relativeTime(pr.updatedAt);
                       return (
                         <li
@@ -558,7 +564,7 @@ export default function App() {
                     })}
                   </ul>
 
-                  {awaitingPRs.length === 0 && !awaitingQuery.isFetching && (
+                  {!awaitingQuery.isFetching && awaitingPRs.length === 0 && (
                     <div className="pr-empty">Nothing awaiting your review.</div>
                   )}
                 </div>
