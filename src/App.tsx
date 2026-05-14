@@ -13,6 +13,7 @@ import {
 import { setFaviconBadge } from "./lib/favicon";
 import { ensureNotifyPermission, notify } from "./lib/notify";
 import { useRoute } from "./lib/router";
+import { SettingsModal } from "./components/SettingsModal";
 import "./App.css";
 
 function relativeTime(iso: string): string {
@@ -275,6 +276,17 @@ export default function App() {
 
   return (
     <div className="app">
+      {showSettings && (
+        <SettingsModal
+          settings={settings}
+          onSave={(s) => {
+            setSettings(s);
+            saveSettings(s);
+            setShowSettings(false);
+          }}
+          onClose={() => setShowSettings(false)}
+        />
+      )}
       <header className="topbar">
         <div className="topbar-inner">
           <div className="brand">
@@ -352,21 +364,9 @@ export default function App() {
 
       {route === "prs" ? (
         <main className="main">
-          {showSettings && (
-            <SettingsPanel
-              settings={settings}
-              onSave={(s) => {
-                setSettings(s);
-                saveSettings(s);
-                setShowSettings(false);
-              }}
-              onClose={() => setShowSettings(false)}
-            />
-          )}
-
           {errorMessage && <div className="error">{errorMessage}</div>}
 
-          {!configured && !showSettings && (
+          {!configured && (
             <div className="empty">
               <p>Configure your GitHub PAT and target repo to start.</p>
               <button className="btn btn-primary" onClick={() => setShowSettings(true)}>
@@ -483,70 +483,3 @@ function Caret() {
   );
 }
 
-function SettingsPanel({
-  settings,
-  onSave,
-  onClose,
-}: {
-  settings: Settings;
-  onSave: (s: Settings) => void;
-  onClose: () => void;
-}) {
-  const [draft, setDraft] = useState<Settings>(settings);
-  return (
-    <div className="settings">
-      <h2>Settings</h2>
-      <label>
-        GitHub Personal Access Token
-        <input
-          type="password"
-          value={draft.token}
-          onChange={(e) => setDraft({ ...draft, token: e.target.value })}
-          placeholder="github_pat_…"
-          autoComplete="off"
-        />
-        <small>
-          Fine-grained PAT with the repo's <code>Pull requests: Read</code> permission.
-          Stored only in your browser localStorage.
-        </small>
-      </label>
-      <label>
-        Repo owner
-        <input
-          type="text"
-          value={draft.owner}
-          onChange={(e) => setDraft({ ...draft, owner: e.target.value })}
-          placeholder="corca-ai"
-        />
-      </label>
-      <label>
-        Repo name
-        <input
-          type="text"
-          value={draft.repo}
-          onChange={(e) => setDraft({ ...draft, repo: e.target.value })}
-          placeholder="corca-app"
-        />
-      </label>
-      <label>
-        Poll interval (seconds)
-        <input
-          type="number"
-          min={15}
-          value={draft.intervalSec}
-          onChange={(e) =>
-            setDraft({ ...draft, intervalSec: Math.max(15, Number(e.target.value) || 60) })
-          }
-        />
-      </label>
-      <div className="settings-actions">
-        <button className="btn btn-ghost" onClick={onClose}>
-          Cancel
-        </button>
-        <button className="btn btn-primary" onClick={() => onSave(draft)}>
-          Save
-        </button>
-      </div>
-    </div>
-  );
-}
