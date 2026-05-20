@@ -1,8 +1,8 @@
 import { useSyncExternalStore } from "react";
 
-export type Route = "prs" | "activity" | "insights" | "linear";
+export type Route = "prs" | "inbox" | "insights" | "linear";
 
-const VALID_ROUTES = new Set<Route>(["prs", "activity", "insights", "linear"]);
+const VALID_ROUTES = new Set<Route>(["prs", "inbox", "insights", "linear"]);
 
 function getRoute(): Route {
   const hash = window.location.hash.replace(/^#\//, "");

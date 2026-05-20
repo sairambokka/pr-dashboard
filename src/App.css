@@ -1730,3 +1730,83 @@ img.avatar {
   margin: 0 auto;
   padding: 0 32px 12px;
 }
+
+/* ── Inbox Styles ───────────────────────────────────────────────────────── */
+
+.inbox-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.inbox-section-title {
+  font-size: 11px;
+  color: var(--muted);
+  letter-spacing: 0.1em;
+  margin-bottom: 16px;
+  font-weight: 500;
+}
+
+.inbox-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.badge {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+.badge-warning { background: rgba(255, 183, 0, 0.1); color: var(--yellow); }
+.badge-info { background: rgba(0, 166, 255, 0.1); color: var(--blue); }
+
+.threads-list { border-top: 1px solid var(--border); }
+
+.thread-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 16px;
+  border-bottom: 1px solid var(--border);
+  gap: 16px;
+}
+
+.thread-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+
+.thread-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.thread-path {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.thread-body {
+  display: flex;
+  gap: 8px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--text);
+}
+
+.thread-author {
+  font-weight: 500;
+  color: var(--text-bright);
+}
+
+.btn-small {
+  padding: 4px 12px;
+  font-size: 11px;
+}

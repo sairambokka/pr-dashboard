@@ -24,7 +24,7 @@ import { setFaviconBadge } from "./lib/favicon";
 import { ensureNotifyPermission, notify } from "./lib/notify";
 import { useRoute } from "./lib/router";
 import { useIsVisible } from "./lib/useVisibility";
-import { ActivityPanel } from "./components/ActivityPanel";
+import { InboxPanel } from "./components/InboxPanel";
 import { CheatsheetOverlay } from "./components/CheatsheetOverlay";
 import { InsightsPanel } from "./components/InsightsPanel";
 import { LinearPanel } from "./components/LinearPanel";
@@ -441,11 +441,11 @@ export default function App() {
               PRS <span className="tab-count">{tabPrsCount || ""}</span>
             </a>
             <a
-              href="#/activity"
-              className={`tab${route === "activity" ? " tab-nav-active" : ""}`}
-              aria-current={route === "activity" ? "page" : undefined}
+              href="#/inbox"
+              className={`tab${route === "inbox" ? " tab-nav-active" : ""}`}
+              aria-current={route === "inbox" ? "page" : undefined}
             >
-              ACTIVITY
+              INBOX
             </a>
             <a
               href="#/insights"
@@ -615,15 +615,17 @@ export default function App() {
           )}
         </main>
       )}
-      {route === "activity" && (
+      {route === "inbox" && (
         <main className="main">
-          <ActivityPanel
-            token={settings.token}
-            owner={settings.owner}
-            repo={settings.repo}
-            hideBots={settings.hideBots ?? true}
-            intervalMs={activityIntervalMs}
-          />
+          {data?.viewer && (
+            <InboxPanel
+              token={settings.token}
+              owner={settings.owner}
+              repo={settings.repo}
+              viewerLogin={data.viewer.login}
+              intervalMs={activityIntervalMs}
+            />
+          )}
         </main>
       )}
       {route === "insights" && data?.viewer && data?.repo && (

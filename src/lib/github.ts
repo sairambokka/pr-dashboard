@@ -17,7 +17,21 @@ query($owner: String!, $name: String!) {
         headRefName
         baseRefName
         comments { totalCount }
-        reviewThreads(first: 100) { nodes { comments { totalCount } } }
+        reviewThreads(first: 100) {
+          nodes {
+            isResolved
+            path
+            comments(first: 50) {
+              totalCount
+              nodes {
+                body
+                url
+                createdAt
+                author { login }
+              }
+            }
+          }
+        }
         reviewDecision
         reviews(last: 30) {
           nodes { state author { login } submittedAt }
@@ -63,7 +77,21 @@ query AwaitingReview($searchQ: String!) {
         author { login }
         headRefName baseRefName
         comments { totalCount }
-        reviewThreads(first: 100) { nodes { comments { totalCount } } }
+        reviewThreads(first: 100) {
+          nodes {
+            isResolved
+            path
+            comments(first: 50) {
+              totalCount
+              nodes {
+                body
+                url
+                createdAt
+                author { login }
+              }
+            }
+          }
+        }
         reviewDecision
         reviews(last: 30) { nodes { state author { login } submittedAt } }
         commits(last: 1) { nodes { commit { statusCheckRollup { state } } } }
@@ -88,6 +116,11 @@ export function isCiFailed(state: CiState | null): boolean {
   return state === "FAILURE" || state === "ERROR";
 }
 
+export interface UnresolvedThread {
+  path: string;
+  comments: Array<{ body: string; url: string; createdAt: string; authorLogin: string | null }>;
+}
+
 export interface PRSummary {
   number: number;
   title: string;
@@ -108,6 +141,7 @@ export interface PRSummary {
   latestReviewSubmittedAt: string | null;
   reviewRequestedReviewers: Array<{ kind: "user" | "team"; name: string }>;
   reviewRequestedTimes: Array<{ createdAt: string; reviewerLogin: string | null; teamSlug: string | null }>;
+  unresolvedThreads: UnresolvedThread[];
 }
 
 export interface AwaitingReviewPR extends PRSummary {
@@ -129,7 +163,21 @@ type GqlPRNode = {
   headRefName: string;
   baseRefName: string;
   comments: { totalCount: number };
-  reviewThreads: { nodes: Array<{ comments: { totalCount: number } }> };
+  reviewThreads: {
+    nodes: Array<{
+      isResolved: boolean;
+      path: string;
+      comments: {
+        totalCount: number;
+        nodes: Array<{
+          body: string;
+          url: string;
+          createdAt: string;
+          author: { login: string } | null;
+        }>;
+      };
+    }>;
+  };
   reviewDecision: PRSummary["reviewDecision"];
   reviews: {
     nodes: Array<{
@@ -180,10 +228,21 @@ interface GqlAwaitingResp {
 }
 
 function parsePullRequestNode(node: GqlPRNode, viewerLogin: string): PRSummary {
-  const reviewCommentCount = node.reviewThreads.nodes.reduce(
-    (sum, t) => sum + t.comments.totalCount,
-    0,
-  );
+  const unresolvedThreads: UnresolvedThread[] = [];
+  const reviewCommentCount = node.reviewThreads.nodes.reduce((sum, t) => {
+    if (!t.isResolved && t.comments.nodes.length > 0) {
+      unresolvedThreads.push({
+        path: t.path,
+        comments: t.comments.nodes.map((c) => ({
+          body: c.body,
+          url: c.url,
+          createdAt: c.createdAt,
+          authorLogin: c.author?.login ?? null,
+        })),
+      });
+    }
+    return sum + t.comments.totalCount;
+  }, 0);
   const issueCommentCount = node.comments.totalCount;
   const ci = node.commits.nodes[0]?.commit.statusCheckRollup?.state ?? null;
 
@@ -261,6 +320,7 @@ function parsePullRequestNode(node: GqlPRNode, viewerLogin: string): PRSummary {
     latestReviewSubmittedAt,
     reviewRequestedReviewers,
     reviewRequestedTimes,
+    unresolvedThreads,
   };
 }
 
