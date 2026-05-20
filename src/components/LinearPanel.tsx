@@ -266,7 +266,7 @@ export function LinearPanel({ apiKey, teamId, authoredPRs, intervalMs }: Props) 
             const issue = row.issue!;
             const badge = getStatusBadge(issue.state);
             return (
-              <li key={issue.identifier} className="row linear-row" style={{ opacity: 0.55 }}>
+              <li key={issue.identifier} className="row linear-row">
                 <a
                   className="ticket-id mono"
                   href={issue.url}
@@ -275,7 +275,7 @@ export function LinearPanel({ apiKey, teamId, authoredPRs, intervalMs }: Props) 
                 >
                   {issue.identifier}
                 </a>
-                <span className="item-title muted">{issue.title}</span>
+                <span className="item-title">{issue.title}</span>
                 <span>
                   <span className={badge.className}>{badge.label}</span>
                 </span>
