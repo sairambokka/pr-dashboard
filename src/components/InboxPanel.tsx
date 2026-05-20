@@ -24,7 +24,7 @@ export function InboxPanel({ token, owner, repo, viewerLogin, intervalMs }: Prop
     enabled: Boolean(token && owner && repo),
   });
 
-  const awaiting = awaitingQuery.data ?? [];
+  const awaiting = (awaitingQuery.data ?? []).filter((pr) => !pr.isTeamRequest);
   const myPrs = myPrsQuery.data?.prs ?? [];
 
   const unresolvedThreadsList = myPrs.flatMap((pr) =>

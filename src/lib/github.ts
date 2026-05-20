@@ -17,7 +17,7 @@ query($owner: String!, $name: String!) {
         headRefName
         baseRefName
         comments { totalCount }
-        reviewThreads(first: 40) {
+        reviewThreads(last: 40) {
           nodes {
             isResolved
             path
@@ -77,7 +77,7 @@ query AwaitingReview($searchQ: String!) {
         author { login }
         headRefName baseRefName
         comments { totalCount }
-        reviewThreads(first: 40) {
+        reviewThreads(last: 40) {
           nodes {
             isResolved
             path
