@@ -176,71 +176,78 @@ export default function App() {
     void ensureNotifyPermission();
   }, []);
 
+  const lastFetchedStatsRef = useRef<Record<number, { totalComments: number; latestReviewSubmittedAt: string | null; ciState: PRSummary["ciState"] }>>({});
+
   useEffect(() => {
     if (!data) return;
     const { prs: fresh } = data;
     const prior = seenRef.current;
     const next: SeenMap = { ...prior };
+    const lastStats = lastFetchedStatsRef.current;
+    const nextStats: typeof lastStats = {};
     const tabFocused = typeof document !== "undefined" && document.hasFocus();
     const onPrsTab = route === "prs";
     const shouldNotify = !(tabFocused && onPrsTab);
 
+    let seenChanged = false;
+
     for (const pr of fresh) {
-      const snapshot: SeenEntry = {
+      const currentStats = {
         totalComments: pr.totalCommentCount,
         latestReviewSubmittedAt: pr.latestReviewSubmittedAt,
         ciState: pr.ciState,
       };
+
+      // 1. If it's a new PR we haven't seen in local state, initialize it silently.
       if (!(pr.number in prior)) {
-        next[pr.number] = snapshot;
-        continue;
+        next[pr.number] = currentStats;
+        seenChanged = true;
       }
-      const p = prior[pr.number];
-      const commentDelta = pr.totalCommentCount - p.totalComments;
-      if (shouldNotify && commentDelta > 0) {
-        notify(
-          `PR #${pr.number}: ${commentDelta} new comment${commentDelta === 1 ? "" : "s"}`,
-          pr.title,
-          pr.url,
-        );
+
+      // 2. Decide if we show notifications by comparing against the last fetched stats
+      if (pr.number in lastStats) {
+        const prevStats = lastStats[pr.number];
+
+        const commentDelta = pr.totalCommentCount - prevStats.totalComments;
+        if (shouldNotify && commentDelta > 0) {
+          notify(
+            `PR #${pr.number}: ${commentDelta} new comment${commentDelta === 1 ? "" : "s"}`,
+            pr.title,
+            pr.url,
+          );
+        }
+
+        const reviewAdvanced =
+          pr.latestReviewSubmittedAt !== null &&
+          (prevStats.latestReviewSubmittedAt === null ||
+            pr.latestReviewSubmittedAt > prevStats.latestReviewSubmittedAt);
+        if (shouldNotify && reviewAdvanced) {
+          notify(`PR #${pr.number}: new review`, pr.title, pr.url);
+        }
+
+        const ciTurnedBad =
+          pr.ciState !== null &&
+          isCiFailed(pr.ciState) &&
+          (prevStats.ciState === null || !isCiFailed(prevStats.ciState));
+        if (shouldNotify && ciTurnedBad) {
+          notify(`PR #${pr.number}: CI failed`, pr.title, pr.url);
+        }
       }
-      const reviewAdvanced =
-        pr.latestReviewSubmittedAt !== null &&
-        (p.latestReviewSubmittedAt === null ||
-          pr.latestReviewSubmittedAt > p.latestReviewSubmittedAt);
-      if (shouldNotify && reviewAdvanced) {
-        notify(`PR #${pr.number}: new review`, pr.title, pr.url);
-      }
-      const ciTurnedBad =
-        pr.ciState !== null &&
-        isCiFailed(pr.ciState) &&
-        (p.ciState === null || !isCiFailed(p.ciState));
-      if (shouldNotify && ciTurnedBad) {
-        notify(`PR #${pr.number}: CI failed`, pr.title, pr.url);
-      }
-      next[pr.number] = snapshot;
+
+      nextStats[pr.number] = currentStats;
     }
+
+    // 3. Clean up deleted PRs from seen state
     for (const key of Object.keys(next)) {
-      if (!fresh.some((p) => String(p.number) === key)) delete next[Number(key)];
+      if (!fresh.some((p) => String(p.number) === key)) {
+        delete next[Number(key)];
+        seenChanged = true;
+      }
     }
 
-    // Skip no-op writes to avoid triggering re-renders
-    const prevSeen = seenRef.current;
-    const changed =
-      Object.keys(next).length !== Object.keys(prevSeen).length ||
-      Object.keys(next).some((k) => {
-        const num = Number(k);
-        const a = next[num];
-        const b = prevSeen[num];
-        if (!b) return true;
-        return (
-          a.totalComments !== b.totalComments ||
-          a.latestReviewSubmittedAt !== b.latestReviewSubmittedAt ||
-          a.ciState !== b.ciState
-        );
-      });
+    lastFetchedStatsRef.current = nextStats;
 
-    if (changed) {
+    if (seenChanged) {
       setSeen(next);
       saveSeen(next);
     }

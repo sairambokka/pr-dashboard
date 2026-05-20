@@ -16,7 +16,6 @@ interface Props {
   intervalMs: number;
 }
 
-const TICKET_PREFIX_REGEX = /^([A-Z]+-\d+):/;
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
@@ -107,8 +106,12 @@ export function LinearPanel({ apiKey, teamId, authoredPRs, intervalMs }: Props) 
     }
     const prByIdentifier = new Map<string, PRSummary>();
     for (const pr of authoredPRs) {
-      const match = pr.title.match(TICKET_PREFIX_REGEX);
-      if (match) prByIdentifier.set(match[1], pr);
+      const matches = pr.title.match(/[A-Z]+-\d+/g);
+      if (matches) {
+        for (const id of matches) {
+          prByIdentifier.set(id, pr);
+        }
+      }
     }
     const identifiers = new Set([...issueByIdentifier.keys(), ...prByIdentifier.keys()]);
     return Array.from(identifiers).map((id) => ({
