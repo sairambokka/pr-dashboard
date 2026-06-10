@@ -62,7 +62,7 @@ export function InboxPanel({ token, owner, repo, viewerLogin, intervalMs }: Prop
           {/* NEEDS YOUR REVIEW */}
           {awaiting.length > 0 && (
             <div className="inbox-section">
-              <h3 className="inbox-section-title">NEEDS YOUR REVIEW</h3>
+              <h3 className="inbox-section-title" style={{ transform: "rotate(-1deg)" }}>NEEDS YOUR REVIEW</h3>
               <ul className="pr-list">
                 {awaiting.map((pr) => (
                   <li key={pr.number} className="row inbox-row">
@@ -91,7 +91,7 @@ export function InboxPanel({ token, owner, repo, viewerLogin, intervalMs }: Prop
           {/* UNADDRESSED FEEDBACK */}
           {unresolvedThreadsList.length > 0 && (
             <div className="inbox-section">
-              <h3 className="inbox-section-title">UNADDRESSED FEEDBACK ON YOUR PRs</h3>
+              <h3 className="inbox-section-title" style={{ transform: "rotate(-1deg)" }}>UNADDRESSED FEEDBACK ON YOUR PRs</h3>
               <ul className="pr-list threads-list">
                 {unresolvedThreadsList.map(({ pr, thread }, i) => {
                   const lastComment = thread.comments[thread.comments.length - 1];

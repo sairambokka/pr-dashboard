@@ -56,7 +56,7 @@ function relativeTime(iso: string): string {
 }
 
 function PrIcon({ state }: { state: "open" | "draft" | "merged" }) {
-  const color = state === "draft" ? "#7d8590" : state === "merged" ? "#a371f7" : "#3fb950";
+  const color = state === "draft" ? "#000000" : state === "merged" ? "#7C3AED" : "#00C853";
   return (
     <svg
       width="16"
@@ -81,7 +81,7 @@ function CommentIcon() {
 
 function CheckIcon() {
   return (
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="#3fb950" aria-hidden="true">
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="#00C853" aria-hidden="true">
       <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z" />
     </svg>
   );
@@ -89,7 +89,7 @@ function CheckIcon() {
 
 function XIcon() {
   return (
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="#f85149" aria-hidden="true">
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="#FF1744" aria-hidden="true">
       <path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.749.749 0 0 1 1.275.326.749.749 0 0 1-.215.734L9.06 8l3.22 3.22a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215L8 9.06l-3.22 3.22a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z" />
     </svg>
   );
@@ -97,7 +97,7 @@ function XIcon() {
 
 function DotIcon() {
   return (
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="#d29922" aria-hidden="true">
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="#FF6B6B" aria-hidden="true">
       <circle cx="8" cy="8" r="4" />
     </svg>
   );
@@ -390,7 +390,6 @@ export default function App() {
 
   return (
     <>
-    <div aria-hidden className="overlay-scan" />
     <div className="app">
       {showSettings && (
         <SettingsModal
@@ -410,7 +409,7 @@ export default function App() {
       )}
       <header className="topbar">
         <div className="topbar-row">
-          <div className="brand">
+          <div className="brand -rotate-1">
             <span className="brand-mark" aria-hidden />
             PR.DASHBOARD
           </div>
@@ -431,7 +430,7 @@ export default function App() {
             {lastFetch && (
               <span className="ts">Updated {relativeTime(new Date(lastFetch).toISOString())}</span>
             )}
-            <span className={`live-pill live-pill-${liveState}`}>
+            <span className={`live-pill live-pill-${liveState} rotate-1`}>
               <span className="live-dot" />
               {liveState.toUpperCase()}
             </span>
@@ -493,9 +492,9 @@ export default function App() {
           {errorMessage && <div className="error">{errorMessage}</div>}
 
           {!configured && (
-            <div className="empty">
+            <div className="empty -rotate-1">
               <p>Configure your GitHub PAT and target repo to start.</p>
-              <button className="btn btn-primary" onClick={() => setShowSettings(true)}>
+              <button className="btn btn-primary rotate-1" onClick={() => setShowSettings(true)}>
                 Open settings
               </button>
             </div>
@@ -503,7 +502,7 @@ export default function App() {
 
           {configured && (
             <>
-              <div className="scope-toggle">
+              <div className="scope-toggle -rotate-1">
                 <button
                   className="scope-btn"
                   aria-pressed={scope === "authored"}
@@ -668,9 +667,9 @@ export default function App() {
       {route === "linear" && (
         <main className="main">
           {!settings.linearApiKey ? (
-            <div className="empty">
+            <div className="empty -rotate-1">
               <p>Configure your Linear API key in Settings to view tickets.</p>
-              <button className="btn btn-primary" onClick={() => setShowSettings(true)}>
+              <button className="btn btn-primary rotate-1" onClick={() => setShowSettings(true)}>
                 Open Settings
               </button>
             </div>

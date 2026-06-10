@@ -168,7 +168,7 @@ export function LinearPanel({ apiKey, teamId, authoredPRs, intervalMs }: Props) 
         const { day, total } = currentCycleDay(cycleQuery.data!.startsAt, cycleQuery.data!.endsAt);
         return (
           <div className="cycle-bar">
-            <div className="cycle-label">
+            <div className="cycle-label" style={{ transform: "rotate(-1deg)" }}>
               CYCLE {cycleQuery.data!.number}
               <strong>{cycleQuery.data!.name}</strong>
             </div>

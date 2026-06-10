@@ -44,7 +44,7 @@ export function TopReviewers({ prs, viewerLogin }: Props) {
 
   return (
     <div className="card">
-      <div className="card-label" style={{ marginBottom: "16px" }}>
+      <div className="card-label" style={{ marginBottom: "16px", display: "inline-block", transform: "rotate(-1deg)" }}>
         YOUR TOP REVIEWERS
       </div>
       {top5.length === 0 ? (

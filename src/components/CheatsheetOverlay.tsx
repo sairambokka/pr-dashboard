@@ -26,7 +26,7 @@ export function CheatsheetOverlay({ open, onClose }: Props) {
         aria-label="Keyboard shortcuts"
       >
         <header className="modal-header">
-          <h2>Keyboard shortcuts</h2>
+          <h2 style={{ transform: "rotate(-1deg)" }}>Keyboard shortcuts</h2>
           <button className="modal-close" onClick={onClose} aria-label="Close">
             ×
           </button>

@@ -126,7 +126,7 @@ export function ThroughputChart({ prs, range, period }: Props) {
   return (
     <div className="card chart-card">
       <div className="chart-head">
-        <div className="chart-title">PR THROUGHPUT // {periodLabel}</div>
+        <div className="chart-title" style={{ display: "inline-block", transform: "rotate(-1deg)" }}>PR THROUGHPUT // {periodLabel}</div>
         <div className="chart-legend">
           <span>
             <span className="legend-swatch" style={{ background: "var(--yellow)" }} /> OPENED
@@ -149,17 +149,17 @@ export function ThroughputChart({ prs, range, period }: Props) {
         <polyline
           fill="none"
           stroke="var(--yellow)"
-          strokeWidth="1.5"
+          strokeWidth="2.5"
           points={toPoints((b) => b.opened)}
         />
         <polyline
           fill="none"
           stroke="var(--green)"
-          strokeWidth="1.5"
+          strokeWidth="2.5"
           strokeDasharray="3 3"
           points={toPoints((b) => b.merged)}
         />
-        <line x1="0" y1={SVG_H} x2={SVG_W} y2={SVG_H} stroke="var(--border)" strokeWidth="1" />
+        <line x1="0" y1={SVG_H} x2={SVG_W} y2={SVG_H} stroke="var(--border)" strokeWidth="3" />
       </svg>
       <div className="chart-foot">
         <span>{footLeft}</span>

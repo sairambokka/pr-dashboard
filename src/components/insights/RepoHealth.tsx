@@ -21,7 +21,7 @@ function Stat({ label, value, danger, accent }: StatProps) {
   const color = danger ? "var(--red)" : accent ? "var(--accent)" : "var(--text)";
   return (
     <div>
-      <div style={{ fontSize: "24px", color, fontWeight: 300, lineHeight: 1 }}>{display}</div>
+      <div style={{ fontSize: "24px", color, fontWeight: 900, lineHeight: 1 }}>{display}</div>
       <div
         style={{
           fontSize: "10px",
@@ -53,7 +53,7 @@ export function RepoHealth({ stats, mergesPerDay }: Props) {
 
   return (
     <div className="card">
-      <div className="card-label" style={{ marginBottom: "16px" }}>
+      <div className="card-label" style={{ marginBottom: "16px", display: "inline-block", transform: "rotate(-1deg)" }}>
         REPO HEALTH
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>

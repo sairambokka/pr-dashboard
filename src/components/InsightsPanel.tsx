@@ -143,7 +143,7 @@ function ContribPanel({
 
   return (
     <div className="contrib-panel">
-      <div className="contrib-head">
+      <div className="contrib-head" style={{ transform: "rotate(-1deg)" }}>
         <div className="contrib-user">
           {viewerAvatarUrl ? (
             <img
@@ -186,7 +186,7 @@ function ContribPanel({
           </g>
 
           {/* Bars */}
-          <g fill="var(--accent)">
+          <g fill="var(--accent)" stroke="#000" strokeWidth="2">
             {chartWeeks.map((week, i) => {
               const barHeight = (week.c / maxCommits) * svgH;
               const x = i * barW + barGap / 2;
@@ -205,7 +205,7 @@ function ContribPanel({
           </g>
 
           {/* Bottom border */}
-          <line x1="0" y1={svgH} x2={svgW} y2={svgH} stroke="var(--border)" strokeWidth="1" />
+          <line x1="0" y1={svgH} x2={svgW} y2={svgH} stroke="var(--border)" strokeWidth="3" />
         </svg>
 
         <div className="y-axis-labels">
@@ -413,7 +413,7 @@ export function InsightsPanel({
           rel="noopener noreferrer"
           className="pr-of-day"
         >
-          <div className="pod-label">◆ NEXT ACTION</div>
+          <div className="pod-label" style={{ display: "inline-block", transform: "rotate(-1deg)" }}>◆ NEXT ACTION</div>
           <div className="pod-title">{nextAction.prTitle}</div>
           <div className="pod-meta">
             PR <span className="num mono">{nextAction.prNumber}</span> · {nextAction.label} ·{" "}
@@ -422,7 +422,7 @@ export function InsightsPanel({
         </a>
       ) : (
         <div className="pr-of-day pr-of-day-empty">
-          <div className="pod-label">◆ NEXT ACTION</div>
+          <div className="pod-label" style={{ display: "inline-block", transform: "rotate(-1deg)" }}>◆ NEXT ACTION</div>
           <div className="pod-title">Inbox zero. Nothing waiting on you.</div>
         </div>
       )}

@@ -59,7 +59,7 @@ export function CommitCadence({ data }: Props) {
 
   return (
     <div className="card">
-      <div className="card-label" style={{ marginBottom: "16px" }}>
+      <div className="card-label" style={{ marginBottom: "16px", display: "inline-block", transform: "rotate(-1deg)" }}>
         COMMIT CADENCE · LAST 30D
       </div>
       <div style={{ position: "relative", paddingLeft: 32 }}>
@@ -90,12 +90,12 @@ export function CommitCadence({ data }: Props) {
           preserveAspectRatio="none"
           style={{ width: "100%", height: SVG_H, display: "block" }}
         >
-          <g stroke="var(--border)" strokeWidth="1" strokeDasharray="2 4">
+          <g stroke="var(--border-muted)" strokeWidth="1" strokeDasharray="2 4">
             <line x1="0" y1={SVG_H * 0.25} x2={SVG_W} y2={SVG_H * 0.25} />
             <line x1="0" y1={SVG_H * 0.5} x2={SVG_W} y2={SVG_H * 0.5} />
             <line x1="0" y1={SVG_H * 0.75} x2={SVG_W} y2={SVG_H * 0.75} />
           </g>
-          <g fill="var(--yellow)">
+          <g fill="var(--yellow)" stroke="#000" strokeWidth="2">
             {days.map((day, i) => {
               const barH = (day.count / peak) * SVG_H;
               const x = i * STEP;
@@ -112,7 +112,7 @@ export function CommitCadence({ data }: Props) {
               );
             })}
           </g>
-          <line x1="0" y1={SVG_H} x2={SVG_W} y2={SVG_H} stroke="var(--border)" strokeWidth="1" />
+          <line x1="0" y1={SVG_H} x2={SVG_W} y2={SVG_H} stroke="var(--border)" strokeWidth="3" />
         </svg>
       </div>
       <div

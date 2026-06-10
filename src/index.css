@@ -1,22 +1,50 @@
-@import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap");
+@import "tailwindcss";
 
+/* ─────────────────────────────────────────────────────────────────────────
+ * Neo-Brutalism design tokens. Single source of truth — consumed by App.css
+ * (@layer components) and inline utilities. No one-off hexes elsewhere.
+ * ───────────────────────────────────────────────────────────────────────── */
+@theme {
+  --color-neo-bg: #fffdf5; /* cream canvas */
+  --color-neo-ink: #000000; /* all borders, text, shadows */
+  --color-neo-accent: #ff6b6b; /* hot red — primary actions, unread */
+  --color-neo-secondary: #ffd93d; /* yellow — highlights, focus, merged */
+  --color-neo-muted: #c4b5fd; /* violet — headers, decorative */
+  --color-neo-white: #ffffff; /* contrast panels */
+  --color-neo-green: #00c853; /* CI pass / approved */
+  --color-neo-red: #ff1744; /* CI fail / blocking */
+
+  --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+
+  /* Hard offset shadows — zero blur, bottom-right. */
+  --shadow-neo-sm: 4px 4px 0px 0px #000;
+  --shadow-neo-md: 8px 8px 0px 0px #000;
+  --shadow-neo-lg: 12px 12px 0px 0px #000;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * Chart alias layer. The insights SVGs (CommitCadence, ThroughputChart,
+ * ContribPanel) hard-code stroke/fill="var(--accent)" etc. Remap those legacy
+ * variable names onto the neo palette so charts recolor without per-element
+ * edits. Keep these names in sync with the SVG usage in src/components/insights.
+ * ───────────────────────────────────────────────────────────────────────── */
 :root {
-  color-scheme: dark only;
-  --bg: #0a0a0a;
-  --panel: #111111;
-  --panel-2: #161616;
-  --border: #1f1f1f;
-  --border-2: #2a2a2a;
-  --muted: #666666;
-  --dim: #888888;
-  --body: #a0a0a0;
-  --text: #fafafa;
-  --accent: #ffb700;
-  --accent-dim: #8a6300;
-  --green: #4ade80;
-  --red: #ef4444;
-  --yellow: #fbbf24;
-  --blue: #60a5fa;
+  --bg: var(--color-neo-bg);
+  --panel: var(--color-neo-white);
+  --panel-2: var(--color-neo-bg);
+  --border: var(--color-neo-ink);
+  --border-2: var(--color-neo-ink);
+  --border-muted: rgba(0, 0, 0, 0.15);
+  --muted: #000000;
+  --dim: #000000;
+  --body: #000000;
+  --text: #000000;
+  --accent: var(--color-neo-accent);
+  --accent-dim: var(--color-neo-accent);
+  --green: var(--color-neo-green);
+  --red: var(--color-neo-red);
+  --yellow: var(--color-neo-secondary);
+  --blue: var(--color-neo-muted);
 }
 
 *,
@@ -30,17 +58,29 @@
 html,
 body {
   height: 100%;
-  background: #0a0a0a;
-  color: var(--body);
-  font-family: "JetBrains Mono", ui-monospace, monospace;
-  font-size: 13px;
+  background: var(--color-neo-bg);
+  color: var(--color-neo-ink);
+  font-family: var(--font-display);
+  font-size: 14px;
   line-height: 1.5;
   font-variant-numeric: tabular-nums;
   -webkit-font-smoothing: antialiased;
 }
 
+/* Numbers stay column-aligned even in the proportional display font. */
 code,
 .mono {
-  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-family: var(--font-display);
   font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

@@ -47,7 +47,7 @@ export function SettingsModal({ settings, viewerLogin, authError, onSave, onClos
         aria-labelledby="settings-title"
       >
         <header className="modal-header">
-          <h2 id="settings-title">Settings</h2>
+          <h2 id="settings-title" style={{ transform: "rotate(-1deg)" }}>Settings</h2>
           <button className="modal-close" onClick={onClose} aria-label="Close">
             ×
           </button>
