@@ -1,28 +1,21 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 import type { Settings } from "../lib/storage";
-
-interface TestResult {
-  ok: boolean;
-  message: string;
-}
+import { authConfigured, beginLogin } from "../lib/auth";
 
 interface Props {
   settings: Settings;
+  viewerLogin: string;
+  authError: string | null;
   onSave: (s: Settings) => void;
   onClose: () => void;
 }
 
-export function SettingsModal({ settings, onSave, onClose }: Props) {
+export function SettingsModal({ settings, viewerLogin, authError, onSave, onClose }: Props) {
   const [draft, setDraft] = useState<Settings>(settings);
-  const [showToken, setShowToken] = useState(false);
   const [showLinearKey, setShowLinearKey] = useState(false);
-  const [testResult, setTestResult] = useState<TestResult | null>(null);
-  const patRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    patRef.current?.focus();
-  }, []);
+  const signedIn = Boolean(draft.token);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -32,55 +25,16 @@ export function SettingsModal({ settings, onSave, onClose }: Props) {
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [onClose]);
 
-  function handleTokenChange(value: string) {
-    setDraft((d) => ({ ...d, token: value }));
-    setTestResult(null);
-  }
-
   function handleOwnerChange(value: string) {
     setDraft((d) => ({ ...d, owner: value }));
-    setTestResult(null);
   }
 
   function handleRepoChange(value: string) {
     setDraft((d) => ({ ...d, repo: value }));
-    setTestResult(null);
   }
 
-  async function testConnection() {
-    setTestResult({ ok: false, message: "Testing…" });
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 10_000);
-    try {
-      const res = await fetch("https://api.github.com/graphql", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${draft.token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ query: "query { viewer { login } }" }),
-        signal: controller.signal,
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = (await res.json()) as {
-        data?: { viewer?: { login: string } };
-        errors?: Array<{ message: string }>;
-      };
-      if (data.errors?.length) throw new Error(data.errors[0]?.message ?? "Unknown error");
-      const login = data.data?.viewer?.login;
-      if (!login) throw new Error("No viewer login in response");
-      setTestResult({ ok: true, message: `✓ Authenticated as @${login}` });
-    } catch (e) {
-      const message =
-        e instanceof DOMException && e.name === "AbortError"
-          ? "Timeout (10s)"
-          : e instanceof Error
-            ? e.message
-            : String(e);
-      setTestResult({ ok: false, message: `✗ ${message}` });
-    } finally {
-      clearTimeout(timer);
-    }
+  function signOut() {
+    setDraft((d) => ({ ...d, token: "" }));
   }
 
   return (
@@ -102,31 +56,38 @@ export function SettingsModal({ settings, onSave, onClose }: Props) {
         <div className="modal-body">
           <section className="settings-group">
             <h3>GitHub</h3>
-            <label>
-              Personal Access Token
-              <div className="pat-row">
-                <input
-                  ref={patRef}
-                  type={showToken ? "text" : "password"}
-                  value={draft.token}
-                  onChange={(e) => handleTokenChange(e.target.value)}
-                  placeholder="github_pat_…"
-                  autoComplete="off"
-                />
+            <div className="auth-row">
+              {signedIn ? (
+                <>
+                  <span className="test-result ok">
+                    ✓ Signed in{viewerLogin ? ` as @${viewerLogin}` : ""}
+                  </span>
+                  <button type="button" className="btn btn-ghost" onClick={signOut}>
+                    Sign out
+                  </button>
+                </>
+              ) : (
                 <button
                   type="button"
-                  className="btn btn-ghost pat-toggle"
-                  onClick={() => setShowToken((v) => !v)}
-                  aria-label={showToken ? "Hide token" : "Show token"}
+                  className="btn btn-primary"
+                  onClick={() => beginLogin()}
+                  disabled={!authConfigured()}
                 >
-                  {showToken ? "Hide" : "Show"}
+                  Sign in with GitHub
                 </button>
-              </div>
-              <small>
-                Fine-grained PAT with the repo&apos;s <code>Pull requests: Read</code> permission.
-                Stored only in your browser localStorage.
+              )}
+            </div>
+            {!authConfigured() && (
+              <small className="test-result err">
+                OAuth not configured — set <code>VITE_GH_CLIENT_ID</code> and{" "}
+                <code>VITE_AUTH_WORKER_URL</code> at build time.
               </small>
-            </label>
+            )}
+            {authError && <small className="test-result err">✗ {authError}</small>}
+            <small>
+              Authorizes read access to your pull requests via GitHub OAuth. The access token
+              is stored only in your browser localStorage.
+            </small>
             <label>
               Repo owner
               <input
@@ -145,21 +106,6 @@ export function SettingsModal({ settings, onSave, onClose }: Props) {
                 placeholder="e.g. hello-world"
               />
             </label>
-            <div className="test-connection-row">
-              <button
-                type="button"
-                className="btn btn-ghost"
-                onClick={() => void testConnection()}
-                disabled={!draft.token}
-              >
-                Test connection
-              </button>
-              {testResult && (
-                <span className={`test-result ${testResult.ok ? "ok" : "err"}`}>
-                  {testResult.message}
-                </span>
-              )}
-            </div>
           </section>
 
           <section className="settings-group">

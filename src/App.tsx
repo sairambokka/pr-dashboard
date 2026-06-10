@@ -23,6 +23,7 @@ import {
 import { setFaviconBadge } from "./lib/favicon";
 import { ensureNotifyPermission, notify } from "./lib/notify";
 import { useRoute } from "./lib/router";
+import { handleCallback } from "./lib/auth";
 import { useIsVisible } from "./lib/useVisibility";
 import { InboxPanel } from "./components/InboxPanel";
 import { CheatsheetOverlay } from "./components/CheatsheetOverlay";
@@ -149,6 +150,7 @@ export default function App() {
   const [seen, setSeen] = useState<SeenMap>(loadSeen);
   const [showSettings, setShowSettings] = useState(false);
   const [showCheatsheet, setShowCheatsheet] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
   const [scope, setScope] = useState<"authored" | "all">("authored");
   const seenRef = useRef(seen);
   useEffect(() => {
@@ -174,6 +176,25 @@ export default function App() {
 
   useEffect(() => {
     void ensureNotifyPermission();
+  }, []);
+
+  // On load, if we're returning from the GitHub OAuth redirect, exchange the
+  // code for a token (via the Worker) and persist it like the old PAT.
+  useEffect(() => {
+    void handleCallback()
+      .then((token) => {
+        if (!token) return;
+        setSettings((prev) => {
+          const next = { ...prev, token };
+          saveSettings(next);
+          return next;
+        });
+        setShowSettings(true);
+      })
+      .catch((e: unknown) => {
+        setAuthError(e instanceof Error ? e.message : String(e));
+        setShowSettings(true);
+      });
   }, []);
 
   const lastFetchedStatsRef = useRef<Record<number, { totalComments: number; latestReviewSubmittedAt: string | null; ciState: PRSummary["ciState"] }>>({});
@@ -374,6 +395,8 @@ export default function App() {
       {showSettings && (
         <SettingsModal
           settings={settings}
+          viewerLogin={login}
+          authError={authError}
           onSave={(s) => {
             setSettings(s);
             saveSettings(s);

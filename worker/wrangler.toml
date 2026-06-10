@@ -1,0 +1,11 @@
+name = "pr-dashboard-auth"
+main = "src/index.ts"
+compatibility_date = "2024-09-23"
+
+# Public, non-sensitive values. The client_secret is NOT here — set it with:
+#   npx wrangler secret put GITHUB_CLIENT_SECRET
+[vars]
+GITHUB_CLIENT_ID = "Ov23lijCcK4l973c2szV"
+# Origin of the deployed SPA, e.g. https://<user>.github.io
+# For local SPA dev against this Worker, set to http://localhost:5173
+ALLOWED_ORIGIN = "https://sairambokka.github.io"

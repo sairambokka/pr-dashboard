@@ -37,6 +37,9 @@ jobs:
       - name: Build
         env:
           GITHUB_PAGES_BASE: /${{ github.event.repository.name }}/
+          # Public, non-sensitive — set in repo Settings → Secrets and variables → Variables.
+          VITE_GH_CLIENT_ID: ${{ vars.VITE_GH_CLIENT_ID }}
+          VITE_AUTH_WORKER_URL: ${{ vars.VITE_AUTH_WORKER_URL }}
         run: pnpm build
 
       - uses: actions/configure-pages@v5
