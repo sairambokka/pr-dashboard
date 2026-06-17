@@ -1,182 +1,26 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import {
-  fetchMyPRs,
-  isCiFailed,
-  type PRSummary,
-} from "./lib/github";
-import {
-  POLL_INSIGHTS_MS,
-  POLL_LINEAR_MS,
-} from "./lib/constants";
-import type { NextAction } from "./lib/types";
-import {
-  loadSeen,
-  loadSettings,
-  saveSeen,
-  saveSettings,
-  type SeenEntry,
-  type SeenMap,
-  type Settings,
-} from "./lib/storage";
-import { setFaviconBadge } from "./lib/favicon";
-import { ensureNotifyPermission, notify } from "./lib/notify";
-import { useRoute } from "./lib/router";
-import { handleCallback } from "./lib/auth";
-import { useIsVisible } from "./lib/useVisibility";
+import { fetchViewerLogin } from "./lib/github";
+import { loadSettings, saveSettings, type Settings } from "./lib/storage";
+import { useRoute, goHome } from "./lib/router";
+import { handleCallback, beginLogin } from "./lib/auth";
 import { CheatsheetOverlay } from "./components/CheatsheetOverlay";
-import { InsightsPanel } from "./components/InsightsPanel";
-import { LinearPanel } from "./components/LinearPanel";
 import { SettingsModal } from "./components/SettingsModal";
-import { useKeyboardShortcuts } from "./lib/useKeyboardShortcuts";
+import { LandingPage } from "./components/LandingPage";
+import { RepoHome } from "./components/RepoHome";
+import { RepoWorkspace } from "./components/RepoWorkspace";
 import "./App.css";
 
-function ageDescription(updatedAt: string): string {
-  const ms = Date.now() - new Date(updatedAt).getTime();
-  const h = Math.floor(ms / 3_600_000);
-  if (h < 24) return `${h}H AGO`;
-  const d = Math.floor(h / 24);
-  return `${d}D AGO`;
-}
-
-function relativeTime(iso: string): string {
-  const diffMs = Date.now() - new Date(iso).getTime();
-  const m = Math.floor(diffMs / 60000);
-  if (m < 1) return "just now";
-  if (m < 60) return `${m} minutes ago`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return h === 1 ? "1 hour ago" : `${h} hours ago`;
-  const d = Math.floor(h / 24);
-  if (d < 7) return d === 1 ? "1 day ago" : `${d} days ago`;
-  if (d < 14) return "last week";
-  if (d < 30) return `${Math.floor(d / 7)} weeks ago`;
-  return `${Math.floor(d / 30)} months ago`;
-}
-
-function PrIcon({ state }: { state: "open" | "draft" | "merged" }) {
-  const color = state === "draft" ? "#000000" : state === "merged" ? "#7C3AED" : "#00C853";
-  return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 16 16"
-      fill={color}
-      aria-hidden="true"
-      style={{ flexShrink: 0 }}
-    >
-      <path d="M1.5 3.25a2.25 2.25 0 1 1 3 2.122v5.256a2.251 2.251 0 1 1-1.5 0V5.372A2.25 2.25 0 0 1 1.5 3.25Zm5.677-.177L9.573.677A.25.25 0 0 1 10 .854V2.5h1A2.5 2.5 0 0 1 13.5 5v5.628a2.251 2.251 0 1 1-1.5 0V5a1 1 0 0 0-1-1h-1v1.646a.25.25 0 0 1-.427.177L7.177 3.427a.25.25 0 0 1 0-.354ZM3.75 2.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm0 9.5a.75.75 0 1 0 0 1.5.75.75 0 0 0 0-1.5Zm8.25.75a.75.75 0 1 0 1.5 0 .75.75 0 0 0-1.5 0Z" />
-    </svg>
-  );
-}
-
-function CommentIcon() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-      <path d="M1 2.75C1 1.784 1.784 1 2.75 1h10.5c.966 0 1.75.784 1.75 1.75v7.5A1.75 1.75 0 0 1 13.25 12H9.06l-2.573 2.573A1.458 1.458 0 0 1 4 13.543V12H2.75A1.75 1.75 0 0 1 1 10.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h2a.75.75 0 0 1 .75.75v2.189l2.72-2.719a.749.749 0 0 1 .53-.22h4.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z" />
-    </svg>
-  );
-}
-
-function CheckIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="#00C853" aria-hidden="true">
-      <path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z" />
-    </svg>
-  );
-}
-
-function XIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="#FF1744" aria-hidden="true">
-      <path d="M3.72 3.72a.75.75 0 0 1 1.06 0L8 6.94l3.22-3.22a.749.749 0 0 1 1.275.326.749.749 0 0 1-.215.734L9.06 8l3.22 3.22a.749.749 0 0 1-.326 1.275.749.749 0 0 1-.734-.215L8 9.06l-3.22 3.22a.751.751 0 0 1-1.042-.018.751.751 0 0 1-.018-1.042L6.94 8 3.72 4.78a.75.75 0 0 1 0-1.06Z" />
-    </svg>
-  );
-}
-
-function DotIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 16 16" fill="#FF6B6B" aria-hidden="true">
-      <circle cx="8" cy="8" r="4" />
-    </svg>
-  );
-}
-
-function reviewBadge(pr: PRSummary) {
-  const effective = pr.effectiveReview;
-  if (effective === "APPROVED") {
-    const who = pr.approvers.length
-      ? `Approved by ${pr.approvers.map((a) => `@${a}`).join(", ")}`
-      : "Approved";
-    return (
-      <span className="badge badge-approved" title={who}>
-        <CheckIcon /> Approved{pr.approvers.length > 1 ? ` (${pr.approvers.length})` : ""}
-      </span>
-    );
-  }
-  if (effective === "CHANGES_REQUESTED") {
-    const who = pr.changeRequesters.length
-      ? `Changes requested by ${pr.changeRequesters.map((a) => `@${a}`).join(", ")}`
-      : "Changes requested";
-    return (
-      <span className="badge badge-changes" title={who}>
-        <XIcon /> Changes requested
-      </span>
-    );
-  }
-  return null;
-}
-
-function ciIcon(state: PRSummary["ciState"]) {
-  switch (state) {
-    case "SUCCESS":
-      return <CheckIcon />;
-    case "FAILURE":
-    case "ERROR":
-      return <XIcon />;
-    case "PENDING":
-    case "EXPECTED":
-      return <DotIcon />;
-    default:
-      return null;
-  }
-}
+const REPO_HOME_POLL_MS = 60_000;
 
 export default function App() {
   const route = useRoute();
-  const isVisible = useIsVisible();
   const [settings, setSettings] = useState<Settings>(loadSettings);
-  const [seen, setSeen] = useState<SeenMap>(loadSeen);
   const [showSettings, setShowSettings] = useState(false);
   const [showCheatsheet, setShowCheatsheet] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
-  const [scope, setScope] = useState<"authored" | "all">("authored");
-  const seenRef = useRef(seen);
-  useEffect(() => {
-    seenRef.current = seen;
-  }, [seen]);
 
-  const configured = Boolean(settings.token && settings.owner && settings.repo);
-
-  const { data, error, isFetching, dataUpdatedAt, refetch } = useQuery({
-    queryKey: ["prs", settings.owner, settings.repo],
-    queryFn: () => fetchMyPRs(settings.token, settings.owner, settings.repo),
-    refetchInterval: settings.intervalSec * 1000,
-    enabled: configured,
-  });
-
-  const viewer = data?.viewer ?? { login: "", name: null, avatarUrl: "" };
-  const login = viewer.login;
-  const prs = data?.prs ?? [];
-  const allPrs = data?.allPrs ?? [];
-  const authoredCount = prs.length;
-  const allCount = allPrs.length;
-
-  useEffect(() => {
-    void ensureNotifyPermission();
-  }, []);
-
-  // On load, if we're returning from the GitHub OAuth redirect, exchange the
-  // code for a token (via the Worker) and persist it like the old PAT.
+  // Exchange OAuth code for token on first load after GitHub redirect
   useEffect(() => {
     void handleCallback()
       .then((token) => {
@@ -186,7 +30,6 @@ export default function App() {
           saveSettings(next);
           return next;
         });
-        setShowSettings(true);
       })
       .catch((e: unknown) => {
         setAuthError(e instanceof Error ? e.message : String(e));
@@ -194,204 +37,24 @@ export default function App() {
       });
   }, []);
 
-  const lastFetchedStatsRef = useRef<Record<number, { totalComments: number; latestReviewSubmittedAt: string | null; ciState: PRSummary["ciState"] }>>({});
-
-  useEffect(() => {
-    if (!data) return;
-    const { prs: fresh } = data;
-    const prior = seenRef.current;
-    const next: SeenMap = { ...prior };
-    const lastStats = lastFetchedStatsRef.current;
-    const nextStats: typeof lastStats = {};
-    const tabFocused = typeof document !== "undefined" && document.hasFocus();
-    const onPrsTab = route === "prs";
-    const shouldNotify = !(tabFocused && onPrsTab);
-
-    let seenChanged = false;
-
-    for (const pr of fresh) {
-      const currentStats = {
-        totalComments: pr.totalCommentCount,
-        latestReviewSubmittedAt: pr.latestReviewSubmittedAt,
-        ciState: pr.ciState,
-      };
-
-      // 1. If it's a new PR we haven't seen in local state, initialize it silently.
-      if (!(pr.number in prior)) {
-        next[pr.number] = currentStats;
-        seenChanged = true;
-      }
-
-      // 2. Decide if we show notifications by comparing against the last fetched stats
-      if (pr.number in lastStats) {
-        const prevStats = lastStats[pr.number];
-
-        const commentDelta = pr.totalCommentCount - prevStats.totalComments;
-        if (shouldNotify && commentDelta > 0) {
-          notify(
-            `PR #${pr.number}: ${commentDelta} new comment${commentDelta === 1 ? "" : "s"}`,
-            pr.title,
-            pr.url,
-          );
-        }
-
-        const reviewAdvanced =
-          pr.latestReviewSubmittedAt !== null &&
-          (prevStats.latestReviewSubmittedAt === null ||
-            pr.latestReviewSubmittedAt > prevStats.latestReviewSubmittedAt);
-        if (shouldNotify && reviewAdvanced) {
-          notify(`PR #${pr.number}: new review`, pr.title, pr.url);
-        }
-
-        const ciTurnedBad =
-          pr.ciState !== null &&
-          isCiFailed(pr.ciState) &&
-          (prevStats.ciState === null || !isCiFailed(prevStats.ciState));
-        if (shouldNotify && ciTurnedBad) {
-          notify(`PR #${pr.number}: CI failed`, pr.title, pr.url);
-        }
-      }
-
-      nextStats[pr.number] = currentStats;
-    }
-
-    // 3. Clean up deleted PRs from seen state
-    for (const key of Object.keys(next)) {
-      if (!fresh.some((p) => String(p.number) === key)) {
-        delete next[Number(key)];
-        seenChanged = true;
-      }
-    }
-
-    lastFetchedStatsRef.current = nextStats;
-
-    if (seenChanged) {
-      setSeen(next);
-      saveSeen(next);
-    }
-  }, [data?.prs, dataUpdatedAt, route]);
-
-  const unreadByPr = useMemo(() => {
-    const map: Record<number, { unread: boolean; count: number }> = {};
-    let total = 0;
-    for (const pr of prs) {
-      const prior = seen[pr.number];
-      if (!prior) {
-        map[pr.number] = { unread: false, count: 0 };
-        continue;
-      }
-      const commentDelta = Math.max(0, pr.totalCommentCount - prior.totalComments);
-      const reviewAdvanced =
-        pr.latestReviewSubmittedAt !== null &&
-        (prior.latestReviewSubmittedAt === null ||
-          pr.latestReviewSubmittedAt > prior.latestReviewSubmittedAt);
-      const ciTurnedBad =
-        pr.ciState !== null &&
-        isCiFailed(pr.ciState) &&
-        (prior.ciState === null || !isCiFailed(prior.ciState));
-      const unread = commentDelta > 0 || reviewAdvanced || ciTurnedBad;
-      map[pr.number] = { unread, count: commentDelta };
-      total += commentDelta;
-    }
-    return { map, total };
-  }, [prs, seen]);
-
-  useEffect(() => {
-    setFaviconBadge(unreadByPr.total);
-  }, [unreadByPr.total]);
-
-  useEffect(() => {
-    const prefix = unreadByPr.total > 0 ? `(${unreadByPr.total}) ` : "";
-    document.title = `${prefix}PR Dashboard`;
-  }, [unreadByPr.total]);
-
-  const nextAction = useMemo((): NextAction | null => {
-    const authored = data?.prs ?? [];
-
-    // Priority 1: PR I authored, CHANGES_REQUESTED + unread comment
-    for (const pr of authored) {
-      if (pr.effectiveReview === "CHANGES_REQUESTED" && (unreadByPr.map[pr.number]?.count ?? 0) > 0) {
-        return { prNumber: pr.number, prTitle: pr.title, prUrl: pr.url, label: "CHANGES REQUESTED", ageDescription: ageDescription(pr.updatedAt) };
-      }
-    }
-
-    // Priority 2: PR I authored, APPROVED + CI SUCCESS + not yet merged
-    for (const pr of authored) {
-      if (pr.effectiveReview === "APPROVED" && pr.ciState === "SUCCESS") {
-        return { prNumber: pr.number, prTitle: pr.title, prUrl: pr.url, label: "READY TO MERGE", ageDescription: ageDescription(pr.updatedAt) };
-      }
-    }
-
-    // Priority 3: PR I authored with unread comments
-    for (const pr of authored) {
-      if ((unreadByPr.map[pr.number]?.count ?? 0) > 0) {
-        return { prNumber: pr.number, prTitle: pr.title, prUrl: pr.url, label: "NEW COMMENTS", ageDescription: ageDescription(pr.updatedAt) };
-      }
-    }
-
-    return null;
-  }, [data?.prs, unreadByPr.map]);
-
-  const markRead = useCallback((pr: PRSummary) => {
-    const entry: SeenEntry = {
-      totalComments: pr.totalCommentCount,
-      latestReviewSubmittedAt: pr.latestReviewSubmittedAt,
-      ciState: pr.ciState,
-    };
-    const next = { ...seenRef.current, [pr.number]: entry };
-    setSeen(next);
-    saveSeen(next);
-  }, []);
-
-  useKeyboardShortcuts({
-    onRefresh: () => void refetch(),
-    onTab: (tab) => {
-      window.location.hash = `#/${tab}`;
-    },
-    onSettings: () => setShowSettings(true),
-    onCheatsheet: () => setShowCheatsheet(true),
+  // Fetch viewer login once so RepoHome can render
+  const { data: viewerLogin } = useQuery({
+    queryKey: ["viewerLogin", settings.token],
+    queryFn: () => fetchViewerLogin(settings.token),
+    enabled: Boolean(settings.token),
+    staleTime: 5 * 60_000,
   });
 
-  const markAllRead = useCallback(() => {
-    const next: SeenMap = {};
-    for (const pr of prs) {
-      next[pr.number] = {
-        totalComments: pr.totalCommentCount,
-        latestReviewSubmittedAt: pr.latestReviewSubmittedAt,
-        ciState: pr.ciState,
-      };
-    }
-    setSeen(next);
-    saveSeen(next);
-  }, [prs]);
+  // Determine which view to render
+  const hasToken = Boolean(settings.token);
 
-  const handlePrClick = (e: React.MouseEvent<HTMLAnchorElement>, pr: PRSummary) => {
-    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
-    e.preventDefault();
-    markRead(pr);
-    window.open(pr.url, "_blank", "noopener,noreferrer");
-  };
-
-  const errorMessage = error instanceof Error ? error.message : error ? String(error) : null;
-  const lastFetch = dataUpdatedAt > 0 ? dataUpdatedAt : null;
-  const tabPrsCount = authoredCount + allCount;
-
-  const anyError = Boolean(error);
-  const liveState: "live" | "paused" | "error" = !configured
-    ? "paused"
-    : !isVisible
-      ? "paused"
-      : anyError
-        ? "error"
-        : "live";
-
-  return (
+  // Shared modals rendered at app level so they work on every view
+  const sharedModals = (
     <>
-    <div className="app">
       {showSettings && (
         <SettingsModal
           settings={settings}
-          viewerLogin={login}
+          viewerLogin={viewerLogin ?? ""}
           authError={authError}
           onSave={(s) => {
             setSettings(s);
@@ -404,264 +67,78 @@ export default function App() {
       {showCheatsheet && (
         <CheatsheetOverlay open={showCheatsheet} onClose={() => setShowCheatsheet(false)} />
       )}
-      <header className="topbar">
-        <div className="topbar-row">
-          <div className="brand -rotate-1">
-            <span className="brand-mark" aria-hidden />
-            PR.DASHBOARD
-          </div>
-          {configured && (
-            <a
-              className="repo-crumb"
-              href={`https://github.com/${settings.owner}/${settings.repo}`}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              {settings.owner}
-              <span className="slash">/</span>
-              <strong>{settings.repo}</strong>
-            </a>
-          )}
-          {login && <span className="user-tag">{login}</span>}
-          <div className="topbar-actions">
-            {lastFetch && (
-              <span className="ts">Updated {relativeTime(new Date(lastFetch).toISOString())}</span>
-            )}
-            <span className={`live-pill live-pill-${liveState} rotate-1`}>
-              <span className="live-dot" />
-              {liveState.toUpperCase()}
-            </span>
+    </>
+  );
+
+  // Not signed in — show landing page (LandingPage renders its own topbar)
+  if (!hasToken) {
+    return (
+      <>
+        {sharedModals}
+        <LandingPage onSignIn={beginLogin} />
+      </>
+    );
+  }
+
+  // Repo workspace route — the main working view
+  if (route.name === "repo") {
+    return (
+      <>
+        {sharedModals}
+        <div className="app">
+          {/* Brand / home link lives at App level so it works on all authenticated views */}
+          <div className="topbar-brand-row" style={{ position: "absolute", top: 0, left: 0, padding: "12px 16px", zIndex: 10 }}>
             <button
-              className="btn btn-ghost"
-              onClick={() => void refetch()}
-              disabled={!configured || isFetching}
+              className="brand -rotate-1"
+              style={{ background: "none", border: "none", cursor: "pointer" }}
+              onClick={goHome}
+              aria-label="Go to mission control home"
             >
-              {isFetching ? "Refreshing…" : "Refresh"}
-            </button>
-            <button
-              className="btn btn-ghost"
-              onClick={markAllRead}
-              disabled={!unreadByPr.total}
-            >
-              Mark all read
-            </button>
-            <button className="btn btn-ghost" onClick={() => setShowSettings(!showSettings)}>
-              Settings
+              <span className="brand-mark" aria-hidden />
+              PR.DASHBOARD
             </button>
           </div>
-        </div>
-        <nav className="tabs">
-          <div className="tabs-row">
-            <a
-              href="#/prs"
-              className={`tab${route === "prs" ? " tab-nav-active" : ""}`}
-              aria-current={route === "prs" ? "page" : undefined}
-            >
-              PRS <span className="tab-count">{tabPrsCount || ""}</span>
-            </a>
-            <a
-              href="#/insights"
-              className={`tab${route === "insights" ? " tab-nav-active" : ""}`}
-              aria-current={route === "insights" ? "page" : undefined}
-            >
-              INSIGHTS
-            </a>
-            <a
-              href="#/linear"
-              className={`tab${route === "linear" ? " tab-nav-active" : ""}`}
-              aria-current={route === "linear" ? "page" : undefined}
-            >
-              LINEAR
-            </a>
-          </div>
-        </nav>
-      </header>
-
-      {route === "prs" && (
-        <main className="main">
-          {errorMessage && <div className="error">{errorMessage}</div>}
-
-          {!configured && (
-            <div className="empty -rotate-1">
-              <p>Configure your GitHub PAT and target repo to start.</p>
-              <button className="btn btn-primary rotate-1" onClick={() => setShowSettings(true)}>
-                Open settings
-              </button>
-            </div>
-          )}
-
-          {configured && (
-            <>
-              <div className="scope-toggle -rotate-1">
-                <button
-                  className="scope-btn"
-                  aria-pressed={scope === "authored"}
-                  onClick={() => setScope("authored")}
-                >
-                  Authored <span className="scope-count">{authoredCount}</span>
-                </button>
-                <button
-                  className="scope-btn"
-                  aria-pressed={scope === "all"}
-                  onClick={() => setScope("all")}
-                >
-                  All open <span className="scope-count">{allCount}</span>
-                </button>
-              </div>
-
-              {scope === "authored" && (
-                <div className="pr-panel">
-                  <ul className="pr-list">
-                    {prs.map((pr) => {
-                      const unreadEntry = unreadByPr.map[pr.number];
-                      const isUnread = unreadEntry?.unread ?? false;
-                      const unreadCount = unreadEntry?.count ?? 0;
-                      const age = ageDescription(pr.updatedAt);
-                      return (
-                        <a
-                          key={pr.number}
-                          href={pr.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={(e) => handlePrClick(e, pr)}
-                          className={`row pr-row${isUnread ? " is-unread" : ""}`}
-                        >
-                          <span className="pr-num-cell-row">
-                            <span className="pr-num mono">{pr.number}</span>
-                          </span>
-                          <span className="pr-icon-cell">
-                            <PrIcon state={pr.isDraft ? "draft" : "open"} />
-                          </span>
-                          <span className="pr-content">
-                            <span className="pr-title-row">
-                              <span className="pr-title">{pr.title}</span>
-                              {pr.isDraft && <span className="label label-muted">Draft</span>}
-                              {reviewBadge(pr)}
-                            </span>
-                            <span className="pr-meta">
-                              <span className="author">{viewer.login || settings.owner}</span>
-                              <span className="sep">/</span>
-                              <span>{pr.headRefName}</span>
-                            </span>
-                          </span>
-                          <span className="ci-col">{ciIcon(pr.ciState)}</span>
-                          <span className="comment-col mono">
-                            <CommentIcon />
-                            {String(pr.totalCommentCount).padStart(2, "0")}
-                          </span>
-                          <span className="age-col mono">{age.replace(" AGO", "")}</span>
-                          <span className="bubble-slot">
-                            {unreadCount > 0 && (
-                              <button
-                                className="bubble"
-                                title={`${unreadCount} new comment${unreadCount === 1 ? "" : "s"} — click to mark read`}
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  markRead(pr);
-                                }}
-                                aria-label={`${unreadCount} new comment${unreadCount === 1 ? "" : "s"}, click to mark read`}
-                              >
-                                {unreadCount > 99 ? "99+" : unreadCount}
-                              </button>
-                            )}
-                          </span>
-                        </a>
-                      );
-                    })}
-                  </ul>
-
-                  {prs.length === 0 && !isFetching && (
-                    <div className="pr-empty">No open PRs authored by you.</div>
-                  )}
-                </div>
-              )}
-
-              {scope === "all" && (
-                <div className="pr-panel">
-                  <ul className="pr-list">
-                    {allPrs.map((pr) => {
-                      const ageRaw = ageDescription(pr.updatedAt).replace(" AGO", "");
-                      return (
-                        <a
-                          key={pr.number}
-                          href={pr.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="row pr-row"
-                        >
-                          <span className="pr-num-cell-row">
-                            <span className="pr-num mono">{pr.number}</span>
-                          </span>
-                          <span className="pr-icon-cell">
-                            <PrIcon state={pr.isDraft ? "draft" : "open"} />
-                          </span>
-                          <span className="pr-content">
-                            <span className="pr-title-row">
-                              <span className="pr-title">{pr.title}</span>
-                              {pr.isDraft && <span className="label label-muted">Draft</span>}
-                              {reviewBadge(pr)}
-                            </span>
-                            <span className="pr-meta">
-                              <span>{pr.headRefName}</span>
-                            </span>
-                          </span>
-                          <span className="ci-col">{ciIcon(pr.ciState)}</span>
-                          <span className="comment-col mono">
-                            <CommentIcon />
-                            {String(pr.totalCommentCount).padStart(2, "0")}
-                          </span>
-                          <span className="age-col mono">{ageRaw}</span>
-                          <span />
-                        </a>
-                      );
-                    })}
-                  </ul>
-
-                  {allPrs.length === 0 && !isFetching && (
-                    <div className="pr-empty">No open PRs in repo.</div>
-                  )}
-                </div>
-              )}
-            </>
-          )}
-        </main>
-      )}
-      {route === "insights" && data?.viewer && data?.repo && (
-        <main className="main">
-          <InsightsPanel
+          <RepoWorkspace
             token={settings.token}
-            owner={settings.owner}
-            repo={settings.repo}
-            viewerLogin={data.viewer.login}
-            viewerAvatarUrl={data.viewer.avatarUrl}
-            repoCreatedAt={data.repo.createdAt}
-            intervalMs={POLL_INSIGHTS_MS}
-            nextAction={nextAction}
+            owner={route.owner}
+            repo={route.repo}
+            tab={route.tab}
+            settings={settings}
+            setShowSettings={setShowSettings}
+            intervalMs={settings.intervalSec * 1000}
+            onCheatsheet={() => setShowCheatsheet(true)}
           />
-        </main>
-      )}
-      {route === "linear" && (
-        <main className="main">
-          {!settings.linearApiKey ? (
-            <div className="empty -rotate-1">
-              <p>Configure your Linear API key in Settings to view tickets.</p>
-              <button className="btn btn-primary rotate-1" onClick={() => setShowSettings(true)}>
-                Open Settings
+        </div>
+      </>
+    );
+  }
+
+  // Home / callback (callback hash is cleaned up by handleCallback before re-render)
+  // Default authenticated view is RepoHome (mission control)
+  return (
+    <>
+      {sharedModals}
+      <div className="app">
+        <header className="topbar">
+          <div className="topbar-row">
+            <div className="brand -rotate-1">
+              <span className="brand-mark" aria-hidden />
+              PR.DASHBOARD
+            </div>
+            {viewerLogin && <span className="user-tag">{viewerLogin}</span>}
+            <div className="topbar-actions">
+              <button className="btn btn-ghost" onClick={() => setShowSettings(true)}>
+                Settings
               </button>
             </div>
-          ) : (
-            <LinearPanel
-              apiKey={settings.linearApiKey}
-              teamId={settings.linearTeamId}
-              authoredPRs={data?.prs ?? []}
-              intervalMs={POLL_LINEAR_MS}
-            />
-          )}
-        </main>
-      )}
-    </div>
+          </div>
+        </header>
+        <RepoHome
+          token={settings.token}
+          viewerLogin={viewerLogin ?? ""}
+          intervalMs={REPO_HOME_POLL_MS}
+        />
+      </div>
     </>
   );
 }
-

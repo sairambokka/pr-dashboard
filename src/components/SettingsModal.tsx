@@ -25,14 +25,6 @@ export function SettingsModal({ settings, viewerLogin, authError, onSave, onClos
     return () => document.removeEventListener("keydown", handleKeyDown);
   }, [onClose]);
 
-  function handleOwnerChange(value: string) {
-    setDraft((d) => ({ ...d, owner: value }));
-  }
-
-  function handleRepoChange(value: string) {
-    setDraft((d) => ({ ...d, repo: value }));
-  }
-
   function signOut() {
     setDraft((d) => ({ ...d, token: "" }));
   }
@@ -88,24 +80,6 @@ export function SettingsModal({ settings, viewerLogin, authError, onSave, onClos
               Authorizes read access to your pull requests via GitHub OAuth. The access token
               is stored only in your browser localStorage.
             </small>
-            <label>
-              Repo owner
-              <input
-                type="text"
-                value={draft.owner}
-                onChange={(e) => handleOwnerChange(e.target.value)}
-                placeholder="e.g. octocat"
-              />
-            </label>
-            <label>
-              Repo name
-              <input
-                type="text"
-                value={draft.repo}
-                onChange={(e) => handleRepoChange(e.target.value)}
-                placeholder="e.g. hello-world"
-              />
-            </label>
           </section>
 
           <section className="settings-group">
