@@ -484,6 +484,10 @@ export function RepoWorkspace({
         <main className="main">
           {errorMessage && <div className="error">{errorMessage}</div>}
 
+          {isFetching && !data && (
+            <div className="banner banner-info">Loading PRs…</div>
+          )}
+
           <div className="scope-toggle -rotate-1">
             <button
               className="scope-btn"

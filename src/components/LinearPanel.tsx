@@ -218,6 +218,10 @@ export function LinearPanel({ apiKey, teamId, authoredPRs, intervalMs }: Props) 
         </div>
       )}
 
+      {issuesQuery.isLoading && (
+        <div className="banner banner-info">Loading tickets…</div>
+      )}
+
       {issuesQuery.isSuccess && sortedLinked.length === 0 && linearOnlyRows.length === 0 && (
         <div className="pr-empty">No assigned tickets.</div>
       )}
