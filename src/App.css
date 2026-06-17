@@ -2601,3 +2601,335 @@ img.avatar {
     gap: 10px;
   }
 }
+
+/* ── Landing hero — two-column layout ────────────────────────────────── */
+
+.landing-hero-two-col {
+  max-width: 1200px;
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  gap: 56px;
+}
+
+.landing-hero-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 24px;
+}
+
+.landing-hero-trust {
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-neo-ink);
+  opacity: 0.5;
+  margin-top: -8px;
+}
+
+/* Override .landing-hero-inner max-width when in two-col mode */
+.landing-hero-inner.landing-hero-two-col {
+  max-width: 1200px;
+}
+
+.landing-hero-mock {
+  display: flex;
+  flex-direction: column;
+}
+
+.landing-hero-mock-block {
+  /* slightly more pronounced shadow for hero prominence */
+  box-shadow: var(--shadow-neo-lg);
+}
+
+/* ── Hero copy: headline accent turn ─────────────────────────────────── */
+
+.landing-headline-turn {
+  color: var(--color-neo-accent);
+  /* underline using border trick — no text-decoration blur */
+  display: inline-block;
+  border-bottom: 4px solid var(--color-neo-ink);
+  padding-bottom: 2px;
+}
+
+/* ── Hero responsive: stack on narrow screens ─────────────────────────── */
+
+@media (max-width: 960px) {
+  .landing-hero-two-col {
+    grid-template-columns: 1fr;
+    gap: 40px;
+  }
+
+  .landing-hero-inner.landing-hero-two-col {
+    max-width: 640px;
+  }
+}
+
+/* ── Animations — gated behind prefers-reduced-motion: no-preference ──── */
+
+/* Hero row stagger entrance */
+@media (prefers-reduced-motion: no-preference) {
+
+  /* Shared base: starts invisible + shifted up */
+  .landing-anim-line-1,
+  .landing-anim-line-2,
+  .landing-anim-line-3,
+  .landing-anim-subhead,
+  .landing-anim-cta,
+  .landing-anim-trust {
+    opacity: 0;
+    transform: translateY(10px);
+    animation: landing-snap-in 200ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+
+  .landing-anim-line-1  { animation-delay: 80ms; }
+  .landing-anim-line-2  { animation-delay: 160ms; }
+  .landing-anim-line-3  { animation-delay: 240ms; }
+  .landing-anim-subhead { animation-delay: 340ms; }
+  .landing-anim-cta     { animation-delay: 440ms; }
+  .landing-anim-trust   { animation-delay: 520ms; }
+
+  @keyframes landing-snap-in {
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Hero mock rows — staggered entrance */
+  .landing-mock-row-enter {
+    opacity: 0;
+    transform: translateX(-8px);
+    animation: landing-row-slide 180ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  }
+
+  .landing-mock-row-1 { animation-delay: 500ms; }
+  .landing-mock-row-2 { animation-delay: 600ms; }
+  .landing-mock-row-3 { animation-delay: 700ms; }
+  .landing-mock-row-4 { animation-delay: 800ms; }
+
+  @keyframes landing-row-slide {
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  /* CI dot color flip: green → red → green, ambient loop */
+  .landing-mock-ci-flip {
+    animation: ci-flip 3600ms step-start infinite;
+    animation-delay: 1200ms;
+  }
+
+  @keyframes ci-flip {
+    0%   { color: var(--color-neo-red); }
+    50%  { color: var(--color-neo-green); }
+    100% { color: var(--color-neo-red); }
+  }
+
+  /* Unread bubble: count toggle 3 → 0, ambient pop */
+  .landing-bubble-anim {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .landing-bubble-a,
+  .landing-bubble-b {
+    display: block;
+    line-height: 1;
+  }
+
+  .landing-bubble-b {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+  }
+
+  .landing-bubble-anim {
+    animation: bubble-pop 4000ms ease-in-out infinite;
+    animation-delay: 1800ms;
+  }
+
+  .landing-bubble-a {
+    animation: bubble-a-hide 4000ms ease-in-out infinite;
+    animation-delay: 1800ms;
+  }
+
+  .landing-bubble-b {
+    animation: bubble-b-show 4000ms ease-in-out infinite;
+    animation-delay: 1800ms;
+  }
+
+  @keyframes bubble-pop {
+    0%   { transform: scale(1); }
+    40%  { transform: scale(1.25); }
+    55%  { transform: scale(0.95); }
+    70%  { transform: scale(1); }
+    100% { transform: scale(1); }
+  }
+
+  @keyframes bubble-a-hide {
+    0%   { opacity: 1; }
+    38%  { opacity: 1; }
+    42%  { opacity: 0; }
+    85%  { opacity: 0; }
+    90%  { opacity: 1; }
+    100% { opacity: 1; }
+  }
+
+  @keyframes bubble-b-show {
+    0%   { opacity: 0; }
+    38%  { opacity: 0; }
+    42%  { opacity: 1; }
+    85%  { opacity: 1; }
+    90%  { opacity: 0; }
+    100% { opacity: 0; }
+  }
+}
+
+/* Static fallback for reduced-motion: ensure everything is visible */
+@media (prefers-reduced-motion: reduce) {
+  .landing-anim-line-1,
+  .landing-anim-line-2,
+  .landing-anim-line-3,
+  .landing-anim-subhead,
+  .landing-anim-cta,
+  .landing-anim-trust,
+  .landing-mock-row-enter {
+    opacity: 1;
+    transform: none;
+  }
+
+  .landing-mock-ci-flip {
+    color: var(--color-neo-red);
+  }
+
+  .landing-bubble-b {
+    display: none;
+  }
+}
+
+/* ── Landing live feed (hero mock) ───────────────────────────────────────── */
+
+/*
+ * Fix the PR list height to exactly 4 rows so that prepend/drop never
+ * resizes the hero column. Each row is: padding-top 10px + padding-bottom 10px
+ * + content ~18px + border-bottom 2px = ~40px per row; 4 rows = 160px.
+ * We also set overflow:hidden so the exiting bottom row clips cleanly.
+ */
+.landing-mock-livefeed {
+  height: 160px;
+  overflow: hidden;
+}
+
+/* New-row slide-in — gated under prefers-reduced-motion */
+@media (prefers-reduced-motion: no-preference) {
+  .landing-mock-row-live-enter {
+    animation: live-row-drop 200ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  @keyframes live-row-drop {
+    from {
+      opacity: 0;
+      transform: translateY(-100%);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
+
+/* ── Landing ticker ───────────────────────────────────────────────────────── */
+
+.landing-ticker {
+  /* Full-bleed — sits as a sibling <section> inside .landing-page */
+  width: 100%;
+  border-top: 4px solid var(--color-neo-ink);
+  border-bottom: 4px solid var(--color-neo-ink);
+  background: var(--color-neo-ink);
+  overflow: hidden;
+  /* Prevent the ticker from participating in flex gap / column layout */
+  flex-shrink: 0;
+}
+
+.landing-ticker-track {
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+  /* Each set is 50% of the total track width; two sets = 100% → seamless loop */
+}
+
+.landing-ticker-set {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  flex-shrink: 0;
+  /* Intrinsic width determined by content; duplicated in JSX */
+}
+
+.landing-ticker-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 18px;
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-neo-secondary);
+  white-space: nowrap;
+  user-select: none;
+}
+
+.landing-ticker-dot {
+  font-size: 8px;
+  line-height: 1;
+}
+
+.landing-ticker-dot-green {
+  color: var(--color-neo-green);
+}
+
+.landing-ticker-dot-red {
+  color: var(--color-neo-accent);
+}
+
+.landing-ticker-dot-pending {
+  color: var(--color-neo-secondary);
+  opacity: 0.7;
+}
+
+/* Infinite marquee scroll — gated under prefers-reduced-motion */
+@media (prefers-reduced-motion: no-preference) {
+  .landing-ticker-track {
+    animation: marquee 30s linear infinite;
+  }
+
+  /*
+   * The track contains two identical sets end-to-end.
+   * Translating -50% of the total track moves exactly one set width,
+   * which lands us back at the visual start → seamless loop.
+   */
+  @keyframes marquee {
+    from { transform: translateX(0); }
+    to   { transform: translateX(-50%); }
+  }
+}
+
+/* Reduced-motion: static band, no scroll */
+@media (prefers-reduced-motion: reduce) {
+  .landing-ticker-track {
+    /* Show just the first set, truncated — still looks like a band */
+    animation: none;
+    flex-wrap: wrap;
+    height: auto;
+  }
+}

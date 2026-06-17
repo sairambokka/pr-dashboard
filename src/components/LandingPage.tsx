@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import type { JSX } from "react";
 
 interface Props {
@@ -60,7 +61,101 @@ const PAIN_POINTS: { label: string; body: string; rotate: string }[] = [
   },
 ];
 
+// ── Live feed data pool ────────────────────────────────────────────────────
+
+type CiState = "green" | "red" | "pending";
+type ReviewState = "approved" | "changes" | "review";
+
+interface FakePr {
+  num: number;
+  title: string;
+  ci: CiState;
+  review: ReviewState;
+  age: string;
+  unread: number | null;
+}
+
+const PR_POOL: FakePr[] = [
+  { num: 482, title: "Fix auth token refresh logic",      ci: "green",   review: "approved", age: "2d",  unread: 3    },
+  { num: 479, title: "Add rate limiting middleware",       ci: "red",     review: "changes",  age: "4d",  unread: null },
+  { num: 476, title: "Migrate to Postgres 16",            ci: "pending", review: "review",   age: "6d",  unread: null },
+  { num: 471, title: "Bump openssl to 3.3.1",             ci: "green",   review: "review",   age: "12d", unread: null },
+  { num: 468, title: "Refactor webhook dispatcher",       ci: "green",   review: "approved", age: "1d",  unread: 1    },
+  { num: 465, title: "Add OpenTelemetry tracing",         ci: "pending", review: "review",   age: "3d",  unread: null },
+];
+
+const INITIAL_ROWS = PR_POOL.slice(0, 4);
+
+// Safe reduced-motion check (client-only Vite; window always exists at runtime,
+// but guard against any SSR-like initialisation path just in case).
+function prefersReducedMotion(): boolean {
+  if (typeof window === "undefined") return true;
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+// ── Ticker token list ──────────────────────────────────────────────────────
+
+const TICKER_TOKENS = [
+  { text: "#482",             dot: "green"   },
+  { text: "✓ MERGED",        dot: null       },
+  { text: "·",               dot: null       },
+  { text: "#479",             dot: "red"     },
+  { text: "✗ CI FAILED",     dot: null       },
+  { text: "·",               dot: null       },
+  { text: "#476",             dot: "pending" },
+  { text: "⏳ PENDING REVIEW", dot: null     },
+  { text: "·",               dot: null       },
+  { text: "#471",             dot: "green"   },
+  { text: "✓ APPROVED",      dot: null       },
+  { text: "·",               dot: null       },
+  { text: "acme/api",         dot: null       },
+  { text: "·",               dot: null       },
+  { text: "octocat/sandbox",  dot: null       },
+  { text: "·",               dot: null       },
+  { text: "#455",             dot: "red"     },
+  { text: "✗ CONFLICTS",     dot: null       },
+  { text: "·",               dot: null       },
+  { text: "#468",             dot: "green"   },
+  { text: "✓ MERGED",        dot: null       },
+  { text: "·",               dot: null       },
+  { text: "acme/web",         dot: null       },
+  { text: "·",               dot: null       },
+  { text: "#465",             dot: "pending" },
+  { text: "⏳ IN REVIEW",    dot: null       },
+  { text: "·",               dot: null       },
+];
+
+// ── Component ─────────────────────────────────────────────────────────────
+
 export function LandingPage({ onSignIn }: Props): JSX.Element {
+  // Live feed state — newKey identifies which row just entered (drives CSS animation)
+  const [feedRows, setFeedRows] = useState<FakePr[]>(INITIAL_ROWS);
+  const [newKey, setNewKey]     = useState<number | null>(null);
+
+  useEffect(() => {
+    if (prefersReducedMotion()) return; // static list for reduced-motion users
+
+    let currentIdx = 4; // tracks next pool position outside React state
+    let clearAnimId: ReturnType<typeof setTimeout> | null = null;
+
+    const id = setInterval(() => {
+      const incoming = PR_POOL[currentIdx % PR_POOL.length];
+      currentIdx = (currentIdx + 1) % PR_POOL.length;
+
+      setNewKey(incoming.num);
+      setFeedRows((rows) => [incoming, ...rows.slice(0, 3)]);
+
+      // Clear the "new-row" highlight class after slide-in finishes (~250ms)
+      if (clearAnimId !== null) clearTimeout(clearAnimId);
+      clearAnimId = setTimeout(() => setNewKey(null), 300);
+    }, 3500);
+
+    return () => {
+      clearInterval(id);
+      if (clearAnimId !== null) clearTimeout(clearAnimId);
+    };
+  }, []);
+
   return (
     <div className="landing-page">
       {/* ── Top bar ── */}
@@ -75,27 +170,123 @@ export function LandingPage({ onSignIn }: Props): JSX.Element {
 
       {/* ── Hero ── */}
       <section className="landing-hero">
-        <div className="landing-hero-inner">
-          <div className="landing-eyebrow section-title">
-            GitHub PR Inbox
+        <div className="landing-hero-inner landing-hero-two-col">
+
+          {/* Left — copy */}
+          <div className="landing-hero-copy">
+            <div className="landing-eyebrow section-title">
+              GITHUB, MINUS THE NOISE
+            </div>
+            <h1 className="landing-headline">
+              <span className="landing-headline-line landing-anim-line-1">
+                Stop alt-tabbing
+              </span>
+              <br />
+              <span className="landing-headline-line landing-anim-line-2">
+                through GitHub.
+              </span>
+              <br />
+              <span className="landing-headline-line landing-headline-turn landing-anim-line-3">
+                You have one screen now.
+              </span>
+            </h1>
+            <p className="landing-subhead landing-anim-subhead">
+              Built for devs juggling 5+ repos. One view shows every PR that
+              needs you — what's failing CI, what's waiting on your review,
+              what's been sitting there rotting for a week.
+            </p>
+            <button
+              type="button"
+              className="btn btn-primary landing-cta landing-anim-cta"
+              onClick={onSignIn}
+            >
+              Sign in with GitHub
+            </button>
+            <p className="landing-hero-trust landing-anim-trust">
+              1 auth · every repo · ~0 config · token never leaves your browser
+            </p>
           </div>
-          <h1 className="landing-headline">
-            Every PR.<br />
-            Every repo.<br />
-            One dashboard.
-          </h1>
-          <p className="landing-subhead">
-            A Linear-style command centre for your GitHub pull requests — CI
-            status, review queues, unread comments, cycle times, and linked
-            Linear issues, all in one place.
-          </p>
-          <button
-            type="button"
-            className="btn btn-primary landing-cta"
-            onClick={onSignIn}
-          >
-            Sign in with GitHub
-          </button>
+
+          {/* Right — live animated mock */}
+          <div className="landing-hero-mock" aria-hidden="true">
+            <div className="landing-mock-block landing-hero-mock-block">
+
+              {/* Stat strip */}
+              <div className="landing-mock-label card-label">Mission control</div>
+              <div className="landing-mock-statstrip">
+                <span className="landing-mock-stat">12 <span className="landing-mock-stat-unit">open prs</span></span>
+                <span className="landing-mock-sep">·</span>
+                <span className="landing-mock-stat">5 <span className="landing-mock-stat-unit">repos</span></span>
+                <span className="landing-mock-sep">·</span>
+                <span className="landing-mock-stat landing-mock-stat-accent">3 <span className="landing-mock-stat-unit">awaiting you</span></span>
+              </div>
+
+              {/* PR live-feed list — fixed height for 4 rows prevents layout jump */}
+              <div className="landing-mock-prlist landing-mock-livefeed">
+                {feedRows.map((pr) => (
+                  <div
+                    key={pr.num}
+                    className={[
+                      "landing-mock-pr-row",
+                      pr.unread ? "landing-mock-pr-unread" : "",
+                      pr.num === newKey ? "landing-mock-row-live-enter" : "",
+                    ].filter(Boolean).join(" ")}
+                  >
+                    <span className="landing-mock-pr-num">{pr.num}</span>
+                    <span
+                      className={[
+                        "landing-mock-ci",
+                        pr.ci === "green"   ? "landing-mock-ci-green"   : "",
+                        pr.ci === "red"     ? "landing-mock-ci-red"     : "",
+                        pr.ci === "pending" ? "landing-mock-ci-pending" : "",
+                        pr.num === 479 && pr.ci === "red" ? "landing-mock-ci-flip" : "",
+                      ].filter(Boolean).join(" ")}
+                    >●</span>
+                    <span className="landing-mock-pr-title">{pr.title}</span>
+                    {pr.review === "approved" && <span className="badge badge-approved">Approved</span>}
+                    {pr.review === "changes"  && <span className="badge badge-changes">Changes</span>}
+                    {pr.review === "review"   && <span className="badge">Review</span>}
+                    <span className="landing-mock-age">{pr.age}</span>
+                    {pr.unread ? (
+                      <span className="bubble landing-bubble-anim">
+                        <span className="landing-bubble-a">{pr.unread}</span>
+                        <span className="landing-bubble-b">0</span>
+                      </span>
+                    ) : (
+                      <span className="landing-mock-no-badge t-dim">—</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      {/* ── PR Ticker band — between hero and problem ── */}
+      <section className="landing-ticker" aria-hidden="true">
+        <div className="landing-ticker-track">
+          {/* Duplicate the token list twice for seamless loop */}
+          {[0, 1].map((copy) => (
+            <span key={copy} className="landing-ticker-set" aria-hidden={copy === 1 ? "true" : undefined}>
+              {TICKER_TOKENS.map((token, i) => (
+                <span key={i} className="landing-ticker-item">
+                  {token.dot && (
+                    <span
+                      className={[
+                        "landing-ticker-dot",
+                        token.dot === "green"   ? "landing-ticker-dot-green"   : "",
+                        token.dot === "red"     ? "landing-ticker-dot-red"     : "",
+                        token.dot === "pending" ? "landing-ticker-dot-pending" : "",
+                      ].filter(Boolean).join(" ")}
+                    >●</span>
+                  )}
+                  {token.text}
+                </span>
+              ))}
+            </span>
+          ))}
         </div>
       </section>
 
