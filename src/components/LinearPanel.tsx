@@ -41,14 +41,16 @@ function getStatusBadge(state: LinearWorkflowState): { className: string; label:
     return { className: "status-badge status-review", label: state.name.toUpperCase() };
   }
   switch (state.type) {
-    case "backlog":
-    case "unstarted":
-    case "canceled":
-      return { className: "status-badge status-todo", label: state.name.toUpperCase() };
     case "started":
       return { className: "status-badge status-progress", label: state.name.toUpperCase() };
     case "completed":
       return { className: "status-badge status-done", label: state.name.toUpperCase() };
+    case "triage":
+    case "backlog":
+    case "unstarted":
+    case "canceled":
+    default:
+      return { className: "status-badge status-todo", label: state.name.toUpperCase() };
   }
 }
 
@@ -58,10 +60,12 @@ function statusPriority(state: LinearWorkflowState): number {
   if (state.type === "started" && nameLower.includes("review")) return 1;
   switch (state.type) {
     case "started": return 2;
+    case "triage":
     case "backlog":
     case "unstarted": return 3;
     case "completed": return 5;
     case "canceled": return 6;
+    default: return 3;
   }
 }
 

@@ -1,4 +1,4 @@
-export type LinearStateType = "backlog" | "unstarted" | "started" | "completed" | "canceled";
+export type LinearStateType = "triage" | "backlog" | "unstarted" | "started" | "completed" | "canceled";
 
 export interface LinearTeam {
   id: string;
