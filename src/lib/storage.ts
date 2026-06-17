@@ -6,6 +6,7 @@ export interface Settings {
   linearApiKey?: string;
   linearTeamId?: string;
   hideBots?: boolean;
+  lastRepo?: { owner: string; repo: string };
 }
 
 const KEY = "pr-dashboard.settings";
@@ -65,4 +66,13 @@ export function loadSeen(): SeenMap {
 
 export function saveSeen(seen: SeenMap): void {
   localStorage.setItem(SEEN_KEY, JSON.stringify(seen));
+}
+
+export function loadLastRepo(): { owner: string; repo: string } | null {
+  return loadSettings().lastRepo ?? null;
+}
+
+export function saveLastRepo(owner: string, repo: string): void {
+  const s = loadSettings();
+  saveSettings({ ...s, lastRepo: { owner, repo } });
 }

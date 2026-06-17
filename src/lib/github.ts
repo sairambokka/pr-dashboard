@@ -508,6 +508,144 @@ export async function fetchTurnaround(
   return { avgDays, sampleSize: deltas.length };
 }
 
+// ── Involved PRs (cross-repo mission-control) ────────────────────────────────
+
+const INVOLVED_QUERY = `
+query InvolvedPRs($searchQ: String!) {
+  viewer { login name avatarUrl(size: 88) }
+  search(query: $searchQ, type: ISSUE, first: 100) {
+    issueCount
+    nodes {
+      ... on PullRequest {
+        number title url isDraft updatedAt createdAt
+        author { login }
+        headRefName baseRefName
+        repository { nameWithOwner }
+        comments { totalCount }
+        reviewThreads(last: 40) {
+          nodes {
+            isResolved
+            path
+            comments(last: 5) {
+              totalCount
+              nodes {
+                body
+                url
+                createdAt
+                author { login }
+              }
+            }
+          }
+        }
+        reviewDecision
+        reviews(last: 30) { nodes { state author { login } submittedAt } }
+        commits(last: 1) { nodes { commit { statusCheckRollup { state } } } }
+        reviewRequests(first: 10) {
+          nodes { requestedReviewer { ... on User { login } ... on Team { name slug } } }
+        }
+        timelineItems(first: 50, itemTypes: [REVIEW_REQUESTED_EVENT]) {
+          nodes { ... on ReviewRequestedEvent {
+            createdAt
+            requestedReviewer { ... on User { login } ... on Team { name slug } }
+          } }
+        }
+      }
+    }
+  }
+}`;
+
+type GqlInvolvedPRNode = GqlPRNode & {
+  repository: { nameWithOwner: string };
+};
+
+interface GqlInvolvedResp {
+  data?: {
+    viewer: { login: string; name: string | null; avatarUrl: string };
+    search: {
+      issueCount: number;
+      nodes: Array<GqlInvolvedPRNode | Record<string, never>>;
+    };
+  };
+  errors?: Array<{ message: string }>;
+}
+
+export interface InvolvedPR extends PRSummary {
+  repoNameWithOwner: string;
+  reviewRequested: boolean;
+}
+
+export interface InvolvedResult {
+  viewer: { login: string; name: string | null; avatarUrl: string };
+  prs: InvolvedPR[];
+}
+
+export async function fetchInvolvedPRs(
+  token: string,
+  viewerLogin: string,
+): Promise<InvolvedResult> {
+  const searchQ = `is:open is:pr involves:${viewerLogin}`;
+  const res = await fetch(GQL_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ query: INVOLVED_QUERY, variables: { searchQ } }),
+  });
+  if (!res.ok) {
+    throw new Error(`GitHub API ${res.status}: ${await res.text()}`);
+  }
+  const json: GqlInvolvedResp = await res.json();
+  if (json.errors?.length) {
+    throw new Error(json.errors.map((e) => e.message).join("; "));
+  }
+  if (!json.data) throw new Error("Empty GraphQL response");
+
+  const viewer = json.data.viewer;
+
+  const prs: InvolvedPR[] = json.data.search.nodes
+    .filter((node): node is GqlInvolvedPRNode => "number" in node)
+    .map((node) => {
+      const summary = parsePullRequestNode(node, viewerLogin);
+      const reviewRequested = summary.reviewRequestedReviewers.some(
+        (r) => r.kind === "user" && r.name === viewerLogin,
+      );
+      return {
+        ...summary,
+        repoNameWithOwner: node.repository.nameWithOwner,
+        reviewRequested,
+      };
+    });
+
+  return { viewer, prs };
+}
+
+// ── Viewer-only fetch (used by App for RepoHome) ─────────────────────────────
+
+const VIEWER_QUERY = `query { viewer { login } }`;
+
+export async function fetchViewerLogin(token: string): Promise<string> {
+  const res = await fetch(GQL_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ query: VIEWER_QUERY }),
+  });
+  if (!res.ok) {
+    throw new Error(`GitHub API ${res.status}: ${await res.text()}`);
+  }
+  const json = (await res.json()) as {
+    data?: { viewer: { login: string } };
+    errors?: Array<{ message: string }>;
+  };
+  if (json.errors?.length) {
+    throw new Error(json.errors.map((e) => e.message).join("; "));
+  }
+  return json.data?.viewer.login ?? "";
+}
+
 // ── Awaiting review ───────────────────────────────────────────────────────────
 
 export async function fetchAwaitingReview(

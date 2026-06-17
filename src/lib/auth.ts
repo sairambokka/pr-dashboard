@@ -1,3 +1,5 @@
+import { loadLastRepo } from "./storage";
+
 /**
  * GitHub OAuth Web Application Flow (browser side).
  *
@@ -68,9 +70,11 @@ function callbackParams(): URLSearchParams | null {
   return null;
 }
 
-/** Strip OAuth params from the URL and land back on the default route. */
+/** Strip OAuth params from the URL and land back on the appropriate route. */
 function cleanUrl(): void {
-  const clean = `${window.location.origin}${window.location.pathname}#/prs`;
+  const last = loadLastRepo();
+  const hash = last ? `#/r/${last.owner}/${last.repo}/prs` : "#/";
+  const clean = `${window.location.origin}${window.location.pathname}${hash}`;
   window.history.replaceState(null, "", clean);
 }
 
