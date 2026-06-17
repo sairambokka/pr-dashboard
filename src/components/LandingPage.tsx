@@ -526,15 +526,15 @@ export function LandingPage({ onSignIn }: Props): JSX.Element {
                     <span className="landing-linear-issue-title">Fix auth token refresh</span>
                     <span className="landing-linear-state-pill landing-linear-state-pill-review">In Review</span>
                     <span className="t-dim">→</span>
-                    <span className="landing-mock-pr-num">#2359</span>
-                    <span className="landing-linear-prstate">▲ APPROVED</span>
+                    <span className="landing-mock-pr-num">2359</span>
+                    <span className="landing-linear-prstate">APPROVED</span>
                   </div>
                   <div className="landing-linear-prrow">
                     <span className="landing-linear-issue-id">D-2487</span>
                     <span className="landing-linear-issue-title">Add rate limiting middleware</span>
                     <span className="landing-linear-state-pill landing-linear-state-pill-progress">In Progress</span>
                     <span className="t-dim">→</span>
-                    <span className="landing-mock-pr-num">#2341</span>
+                    <span className="landing-mock-pr-num">2341</span>
                     <span className="landing-linear-prstate">OPEN</span>
                   </div>
                   <div className="landing-linear-prrow">
@@ -542,7 +542,7 @@ export function LandingPage({ onSignIn }: Props): JSX.Element {
                     <span className="landing-linear-issue-title">Migrate to Postgres 16</span>
                     <span className="landing-linear-state-pill landing-linear-state-pill-todo">Todo</span>
                     <span className="t-dim">→</span>
-                    <span className="landing-mock-pr-num">#2318</span>
+                    <span className="landing-mock-pr-num">2318</span>
                     <span className="landing-linear-prstate">DRAFT</span>
                   </div>
                 </div>

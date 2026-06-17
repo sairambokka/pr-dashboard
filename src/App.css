@@ -3333,13 +3333,20 @@ img.avatar {
 
 .landing-linear-prrow {
   display: grid;
-  grid-template-columns: 64px 1fr auto 16px 52px auto;
+  grid-template-columns: 56px minmax(0, 1fr) auto 14px 44px auto;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   padding: 9px 12px;
   border-bottom: 2px solid var(--color-neo-ink);
   background: var(--color-neo-white);
-  font-size: 12px;
+  font-size: 11px;
+}
+
+.landing-linear-prrow .landing-linear-issue-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .landing-linear-prrow:last-child {
