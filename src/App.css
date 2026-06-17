@@ -82,6 +82,26 @@
   font-weight: 900;
 }
 
+.home-link {
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: var(--color-neo-ink);
+  background: var(--color-neo-white);
+  border: 2px solid var(--color-neo-ink);
+  box-shadow: var(--shadow-neo-sm);
+  padding: 4px 10px;
+  margin-right: 12px;
+  cursor: pointer;
+  transition: all 120ms;
+}
+
+.home-link:hover {
+  background: var(--color-neo-accent);
+  transform: translate(-1px, -1px);
+}
+
 .slash {
   margin: 0 4px;
   color: var(--color-neo-ink);

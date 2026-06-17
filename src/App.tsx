@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchViewerLogin } from "./lib/github";
 import { loadSettings, saveSettings, type Settings } from "./lib/storage";
-import { useRoute, goHome } from "./lib/router";
+import { useRoute } from "./lib/router";
 import { handleCallback, beginLogin } from "./lib/auth";
 import { CheatsheetOverlay } from "./components/CheatsheetOverlay";
 import { SettingsModal } from "./components/SettingsModal";
@@ -86,18 +86,6 @@ export default function App() {
       <>
         {sharedModals}
         <div className="app">
-          {/* Brand / home link lives at App level so it works on all authenticated views */}
-          <div className="topbar-brand-row" style={{ position: "absolute", top: 0, left: 0, padding: "12px 16px", zIndex: 10 }}>
-            <button
-              className="brand -rotate-1"
-              style={{ background: "none", border: "none", cursor: "pointer" }}
-              onClick={goHome}
-              aria-label="Go to mission control home"
-            >
-              <span className="brand-mark" aria-hidden />
-              PR.DASHBOARD
-            </button>
-          </div>
           <RepoWorkspace
             token={settings.token}
             owner={route.owner}

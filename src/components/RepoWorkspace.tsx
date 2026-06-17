@@ -20,7 +20,7 @@ import {
 } from "../lib/storage";
 import { setFaviconBadge } from "../lib/favicon";
 import { ensureNotifyPermission, notify } from "../lib/notify";
-import { hrefFor, navTo, type RepoTab } from "../lib/router";
+import { hrefFor, navTo, goHome, type RepoTab } from "../lib/router";
 import { useIsVisible } from "../lib/useVisibility";
 import { InsightsPanel } from "./InsightsPanel";
 import { LinearPanel } from "./LinearPanel";
@@ -412,6 +412,9 @@ export function RepoWorkspace({
     <div className="app">
       <header className="topbar">
         <div className="topbar-row">
+          <button className="home-link" onClick={goHome} aria-label="Back to mission control home">
+            ← Home
+          </button>
           <a
             className="repo-crumb"
             href={`https://github.com/${owner}/${repo}`}
