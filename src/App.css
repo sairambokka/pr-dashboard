@@ -2933,3 +2933,585 @@ img.avatar {
     height: auto;
   }
 }
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * Landing — Notifications Spotlight Section
+ * Placed after .landing-solution and before .landing-features.
+ * Uses coral accent band to visually distinguish this flagship section.
+ * ───────────────────────────────────────────────────────────────────────── */
+
+.landing-spotlight {
+  background: var(--color-neo-accent);
+  border-top: 4px solid var(--color-neo-ink);
+  border-bottom: 4px solid var(--color-neo-ink);
+  padding: 64px 32px;
+}
+
+.landing-spotlight-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+/* Override section-title muted bg on the coral band */
+.landing-spotlight .section-title {
+  background: var(--color-neo-ink);
+  color: var(--color-neo-secondary);
+}
+
+.landing-spotlight-lead {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--color-neo-ink);
+  line-height: 1.6;
+  max-width: 680px;
+  margin-bottom: 48px;
+  opacity: 0.9;
+}
+
+/* Three-card grid for the mechanisms */
+.landing-spotlight-mechanisms {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 28px;
+}
+
+/* Each mechanism card: reuses .card + overrides for white-on-coral context */
+.landing-spotlight-card {
+  background: var(--color-neo-white);
+  border: 3px solid var(--color-neo-ink);
+  box-shadow: var(--shadow-neo-lg);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.landing-spotlight-card-desc {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-neo-ink);
+  line-height: 1.55;
+  opacity: 0.75;
+  text-transform: none;
+  letter-spacing: 0;
+  flex: 1;
+}
+
+/* Mock container — consistent padding / border for all three visuals */
+.landing-spotlight-mock {
+  border: 2px solid var(--color-neo-ink);
+  background: var(--color-neo-bg);
+  margin-top: auto;
+}
+
+/* ── Desktop-push notification mock (.landing-notif-*) ─────────────────── */
+
+.landing-notif-card {
+  border: 2px solid var(--color-neo-ink);
+  background: var(--color-neo-white);
+  box-shadow: var(--shadow-neo-sm);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 12px;
+}
+
+.landing-notif-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.landing-notif-icon {
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Reuse .brand-mark inside the notification icon slot */
+.landing-notif-icon .brand-mark {
+  width: 10px;
+  height: 10px;
+}
+
+.landing-notif-app {
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-neo-ink);
+  flex: 1;
+}
+
+.landing-notif-time {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--color-neo-ink);
+  opacity: 0.45;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.landing-notif-title {
+  font-size: 12px;
+  font-weight: 900;
+  color: var(--color-neo-ink);
+  letter-spacing: 0.02em;
+}
+
+.landing-notif-body {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-neo-ink);
+  opacity: 0.6;
+  letter-spacing: 0.02em;
+}
+
+/* ── Favicon + browser-tab mock (.landing-favicon-*) ───────────────────── */
+
+.landing-favicon-browser {
+  border: 2px solid var(--color-neo-ink);
+  background: var(--color-neo-bg);
+  display: flex;
+  flex-direction: column;
+  margin: 12px;
+}
+
+.landing-favicon-bar {
+  display: flex;
+  align-items: stretch;
+  background: var(--color-neo-muted);
+  border-bottom: 2px solid var(--color-neo-ink);
+  gap: 0;
+  overflow: hidden;
+}
+
+.landing-favicon-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--color-neo-ink);
+  border-right: 2px solid var(--color-neo-ink);
+  background: var(--color-neo-bg);
+  opacity: 0.5;
+  flex-shrink: 0;
+}
+
+.landing-favicon-tab:last-child {
+  border-right: none;
+}
+
+.landing-favicon-tab-active {
+  background: var(--color-neo-white);
+  opacity: 1;
+  border-bottom: 2px solid var(--color-neo-white);
+  /* Visually "lifts" the active tab by overriding bottom border */
+  margin-bottom: -2px;
+  z-index: 1;
+  position: relative;
+}
+
+.landing-favicon-icon-wrap {
+  position: relative;
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.landing-favicon-icon {
+  display: block;
+  width: 14px;
+  height: 14px;
+  background: var(--color-neo-accent);
+  border: 1.5px solid var(--color-neo-ink);
+}
+
+.landing-favicon-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  min-width: 13px;
+  height: 13px;
+  background: var(--color-neo-accent);
+  color: var(--color-neo-white);
+  font-size: 8px;
+  font-weight: 900;
+  border: 1.5px solid var(--color-neo-ink);
+  border-radius: 9999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 2px;
+  font-family: var(--font-display);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.landing-favicon-tab-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--color-neo-ink);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.landing-favicon-url-bar {
+  padding: 6px 12px;
+  border-bottom: 2px solid var(--color-neo-ink);
+  background: var(--color-neo-white);
+}
+
+.landing-favicon-url {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+/* ── Spotlight responsive ───────────────────────────────────────────────── */
+
+@media (max-width: 900px) {
+  .landing-spotlight-mechanisms {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .landing-spotlight-card {
+    transform: none !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .landing-spotlight {
+    padding: 40px 16px;
+  }
+
+  .landing-spotlight-lead {
+    font-size: 15px;
+    margin-bottom: 32px;
+  }
+}
+
+/* ── Spotlight: favicon badge pulse (reduced-motion gated) ─────────────── */
+
+@media (prefers-reduced-motion: no-preference) {
+  .landing-favicon-badge {
+    animation: favicon-badge-pulse 3200ms ease-in-out infinite;
+    animation-delay: 1000ms;
+  }
+
+  @keyframes favicon-badge-pulse {
+    0%, 100% { transform: scale(1); }
+    45%       { transform: scale(1.3); }
+    60%       { transform: scale(0.92); }
+    75%       { transform: scale(1); }
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * Landing — Linear Spotlight Section
+ * Placed after .landing-spotlight (coral) and before .landing-features.
+ * Uses lavender (--color-neo-secondary) accent band for page rhythm:
+ *   white solution → coral notif → lavender linear → white features
+ * ───────────────────────────────────────────────────────────────────────── */
+
+.landing-linear {
+  background: var(--color-neo-secondary);
+  border-top: 4px solid var(--color-neo-ink);
+  border-bottom: 4px solid var(--color-neo-ink);
+  padding: 64px 32px;
+}
+
+.landing-linear-inner {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+/* Override section-title muted bg on the lavender band */
+.landing-linear .section-title {
+  background: var(--color-neo-ink);
+  color: var(--color-neo-secondary);
+}
+
+.landing-linear-lead {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--color-neo-ink);
+  line-height: 1.6;
+  max-width: 680px;
+  margin-bottom: 48px;
+  opacity: 0.9;
+}
+
+/* Three-card grid mirroring .landing-spotlight-mechanisms */
+.landing-linear-blocks {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 28px;
+}
+
+/* ── PR ↔ ticket chip (.landing-linear-chip-*) ─────────────────────────── */
+
+/* Row that holds the chip — sits below the PR row in the mock prlist */
+.landing-linear-chip-row {
+  padding: 8px 14px;
+  background: var(--color-neo-secondary);
+  border-bottom: 2px solid var(--color-neo-ink);
+  display: flex;
+  align-items: center;
+}
+
+.landing-linear-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--color-neo-white);
+  border: 2px solid var(--color-neo-ink);
+  padding: 4px 10px;
+  box-shadow: var(--shadow-neo-sm);
+}
+
+.landing-linear-chip-id {
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-neo-ink);
+}
+
+.landing-linear-state-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  flex-shrink: 0;
+  border: 1.5px solid var(--color-neo-ink);
+}
+
+.landing-linear-state-progress {
+  background: var(--color-neo-secondary);
+}
+
+.landing-linear-state-review {
+  background: var(--color-neo-muted);
+}
+
+.landing-linear-state-todo {
+  background: var(--color-neo-bg);
+  opacity: 0.6;
+}
+
+.landing-linear-state-done {
+  background: var(--color-neo-green);
+}
+
+.landing-linear-chip-state {
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-neo-ink);
+}
+
+.landing-linear-chip-priority {
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-neo-white);
+  background: var(--color-neo-ink);
+  padding: 1px 5px;
+}
+
+/* ── Assigned issues list (.landing-linear-issue-*) ──────────────────────── */
+
+.landing-linear-issue-list {
+  border: 2px solid var(--color-neo-ink);
+  background: var(--color-neo-bg);
+}
+
+.landing-linear-issue {
+  display: grid;
+  grid-template-columns: 64px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-bottom: 2px solid var(--color-neo-ink);
+  background: var(--color-neo-white);
+}
+
+.landing-linear-issue:last-child {
+  border-bottom: none;
+}
+
+.landing-linear-issue-id {
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-neo-ink);
+  background: var(--color-neo-secondary);
+  padding: 2px 6px;
+  border: 2px solid var(--color-neo-ink);
+  white-space: nowrap;
+}
+
+.landing-linear-issue-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-neo-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.landing-linear-state-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border: 2px solid var(--color-neo-ink);
+  white-space: nowrap;
+}
+
+.landing-linear-state-pill-progress {
+  background: var(--color-neo-secondary);
+  color: var(--color-neo-ink);
+}
+
+.landing-linear-state-pill-review {
+  background: var(--color-neo-muted);
+  color: var(--color-neo-ink);
+}
+
+.landing-linear-state-pill-todo {
+  background: var(--color-neo-bg);
+  color: var(--color-neo-ink);
+  opacity: 0.7;
+}
+
+/* ── Cycle progress mock (.landing-linear-cycle-*) ───────────────────────── */
+
+.landing-linear-cycle {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.landing-linear-cycle-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.landing-linear-cycle-label {
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-neo-ink);
+}
+
+.landing-linear-cycle-days {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-neo-ink);
+  opacity: 0.6;
+}
+
+.landing-linear-cycle-bar {
+  height: 12px;
+  background: var(--color-neo-bg);
+  border: 2px solid var(--color-neo-ink);
+  position: relative;
+  overflow: hidden;
+}
+
+.landing-linear-cycle-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--color-neo-green);
+}
+
+.landing-linear-cycle-counts {
+  display: flex;
+  gap: 16px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-neo-ink);
+  opacity: 0.65;
+}
+
+.landing-linear-cycle-counts strong {
+  font-weight: 900;
+  opacity: 1;
+  color: var(--color-neo-ink);
+}
+
+.landing-linear-cycle-done  { color: var(--color-neo-ink); }
+.landing-linear-cycle-inprog { color: var(--color-neo-ink); }
+.landing-linear-cycle-todo  { color: var(--color-neo-ink); }
+
+/* ── Linear spotlight: cycle fill entrance animation (reduced-motion gated) ── */
+
+@media (prefers-reduced-motion: no-preference) {
+  .landing-linear-cycle-fill-anim {
+    animation: linear-cycle-grow 1200ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation-delay: 400ms;
+  }
+
+  @keyframes linear-cycle-grow {
+    from { width: 0 !important; }
+    to   { /* width set inline via style prop */ }
+  }
+}
+
+/* Reduced-motion: show full bar statically */
+@media (prefers-reduced-motion: reduce) {
+  .landing-linear-cycle-fill-anim {
+    animation: none;
+  }
+}
+
+/* ── Linear spotlight responsive ──────────────────────────────────────────── */
+
+@media (max-width: 900px) {
+  .landing-linear-blocks {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+
+  .landing-linear-blocks .landing-spotlight-card {
+    transform: none !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .landing-linear {
+    padding: 40px 16px;
+  }
+
+  .landing-linear-lead {
+    font-size: 15px;
+    margin-bottom: 32px;
+  }
+
+  .landing-linear-issue {
+    grid-template-columns: 60px 1fr;
+    gap: 8px;
+  }
+
+  .landing-linear-issue > .landing-linear-state-pill {
+    display: none;
+  }
+}

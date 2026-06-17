@@ -22,18 +22,8 @@ const FEATURES: { label: string; body: string; rotate: string }[] = [
     rotate: "rotate-1",
   },
   {
-    label: "Unread Comment Deltas",
-    body: "See exactly how many new comments landed since your last visit. Red badge, never missed.",
-    rotate: "-rotate-1",
-  },
-  {
     label: "Cycle-Time Insights",
     body: "Track open → merged time per repo and spot where PRs stall in your workflow.",
-    rotate: "rotate-1",
-  },
-  {
-    label: "Linear Integration",
-    body: "Linked Linear issues surface right next to the PR. Status, assignee, cycle — no context switch.",
     rotate: "-rotate-1",
   },
 ];
@@ -387,6 +377,230 @@ export function LandingPage({ onSignIn }: Props): JSX.Element {
         </div>
       </section>
 
+      {/* ── Notifications spotlight ── */}
+      <section className="landing-spotlight">
+        <div className="landing-spotlight-inner">
+
+          <div className="landing-features-heading section-head">
+            <span className="section-title rotate-1">Never miss a comment</span>
+          </div>
+
+          <p className="landing-spotlight-lead">
+            A comment landed three hours ago. On a repo you forgot you had a PR in.
+            You already know — it&apos;s badged on your tab, it pinged your desktop,
+            and it&apos;s waiting as a red delta when you open the dashboard.
+          </p>
+
+          <div className="landing-spotlight-mechanisms">
+
+            {/* ── Mechanism 1: Unread delta ── */}
+            <div className="landing-spotlight-card card rotate-1">
+              <div className="card-label">Unread delta</div>
+              <p className="landing-spotlight-card-desc">
+                Every PR row shows exactly how many new comments arrived since you
+                last looked. Click the bubble to mark it read — it clears instantly.
+              </p>
+              <div className="landing-spotlight-mock" aria-hidden="true">
+                <div className="landing-mock-prlist">
+                  <div className="landing-mock-pr-row landing-mock-pr-unread">
+                    <span className="landing-mock-pr-num">482</span>
+                    <span className="landing-mock-ci landing-mock-ci-green">●</span>
+                    <span className="landing-mock-pr-title">Fix auth token refresh logic</span>
+                    <span className="badge badge-approved">Approved</span>
+                    <span className="landing-mock-age">2d</span>
+                    <span className="bubble landing-bubble-anim">
+                      <span className="landing-bubble-a">3</span>
+                      <span className="landing-bubble-b">0</span>
+                    </span>
+                  </div>
+                  <div className="landing-mock-pr-row">
+                    <span className="landing-mock-pr-num">479</span>
+                    <span className="landing-mock-ci landing-mock-ci-red">●</span>
+                    <span className="landing-mock-pr-title">Add rate limiting middleware</span>
+                    <span className="badge badge-changes">Changes</span>
+                    <span className="landing-mock-age">4d</span>
+                    <span className="landing-mock-no-badge t-dim">—</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* ── Mechanism 2: Desktop push ── */}
+            <div className="landing-spotlight-card card -rotate-1">
+              <div className="card-label">Desktop push</div>
+              <p className="landing-spotlight-card-desc">
+                When you&apos;re in another tab, a native OS notification fires for new
+                comments, submitted reviews, and CI failures. Click it to jump straight
+                to that PR. Requires one-time browser permission.
+              </p>
+              <div className="landing-spotlight-mock" aria-hidden="true">
+                <div className="landing-notif-card">
+                  <div className="landing-notif-header">
+                    <span className="landing-notif-icon" aria-hidden="true">
+                      <span className="brand-mark" />
+                    </span>
+                    <span className="landing-notif-app">PR Dashboard</span>
+                    <span className="landing-notif-time">now</span>
+                  </div>
+                  <div className="landing-notif-title">PR #482 · 3 new comments</div>
+                  <div className="landing-notif-body">Fix auth token refresh logic — acme/api</div>
+                </div>
+              </div>
+            </div>
+
+            {/* ── Mechanism 3: Favicon badge ── */}
+            <div className="landing-spotlight-card card rotate-1">
+              <div className="card-label">Favicon badge</div>
+              <p className="landing-spotlight-card-desc">
+                The browser-tab favicon gets a red count bubble showing your total
+                unread across all PRs — capped at 9+ so you always know at a glance,
+                even when the dashboard isn&apos;t your focused tab.
+              </p>
+              <div className="landing-spotlight-mock" aria-hidden="true">
+                <div className="landing-favicon-browser">
+                  <div className="landing-favicon-bar">
+                    <div className="landing-favicon-tab landing-favicon-tab-active">
+                      <div className="landing-favicon-icon-wrap">
+                        <span className="landing-favicon-icon" />
+                        <span className="landing-favicon-badge">3</span>
+                      </div>
+                      <span className="landing-favicon-tab-label">PR Dashboard</span>
+                    </div>
+                    <div className="landing-favicon-tab">
+                      <span className="landing-favicon-tab-label t-dim">GitHub</span>
+                    </div>
+                    <div className="landing-favicon-tab">
+                      <span className="landing-favicon-tab-label t-dim">Slack</span>
+                    </div>
+                  </div>
+                  <div className="landing-favicon-url-bar">
+                    <span className="landing-favicon-url t-dim">pr-dashboard.app</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      {/* ── Linear spotlight ── */}
+      <section className="landing-linear">
+        <div className="landing-linear-inner">
+
+          <div className="landing-features-heading section-head">
+            <span className="section-title -rotate-1">Your tickets, next to your code</span>
+          </div>
+
+          <p className="landing-linear-lead">
+            The PR and the ticket it closes, side by side. Linear status, priority, and cycle
+            — surfaced on the dashboard by matching the issue ID in your PR title. No tab to
+            Linear, no copy-paste. Paste your Linear API key in Settings once; everything
+            else is automatic.
+          </p>
+
+          <div className="landing-linear-blocks">
+
+            {/* ── Block 1: PR ↔ ticket link ── */}
+            <div className="landing-spotlight-card card rotate-1">
+              <div className="card-label">PR linked to ticket</div>
+              <p className="landing-spotlight-card-desc">
+                A PR titled &ldquo;ENG-482 Fix auth token refresh&rdquo; automatically links to
+                issue ENG-482. The ticket&apos;s state and priority appear right on the PR row
+                — no manual linking, no extra clicks.
+              </p>
+              <div className="landing-spotlight-mock" aria-hidden="true">
+                <div className="landing-mock-prlist">
+                  <div className="landing-mock-pr-row landing-mock-pr-unread">
+                    <span className="landing-mock-pr-num">482</span>
+                    <span className="landing-mock-ci landing-mock-ci-green">●</span>
+                    <span className="landing-mock-pr-title">ENG-482 Fix auth token refresh</span>
+                    <span className="badge badge-approved">Approved</span>
+                    <span className="landing-mock-age">2d</span>
+                    <span className="bubble">3</span>
+                  </div>
+                  <div className="landing-linear-chip-row">
+                    <span className="landing-linear-chip">
+                      <span className="landing-linear-chip-id">ENG-482</span>
+                      <span className="landing-linear-state-dot landing-linear-state-progress" />
+                      <span className="landing-linear-chip-state">In Progress</span>
+                      <span className="landing-linear-chip-priority">P1</span>
+                    </span>
+                  </div>
+                  <div className="landing-mock-pr-row">
+                    <span className="landing-mock-pr-num">479</span>
+                    <span className="landing-mock-ci landing-mock-ci-red">●</span>
+                    <span className="landing-mock-pr-title">Add rate limiting middleware</span>
+                    <span className="badge badge-changes">Changes</span>
+                    <span className="landing-mock-age">4d</span>
+                    <span className="landing-mock-no-badge t-dim">—</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* ── Block 2: Assigned issues ── */}
+            <div className="landing-spotlight-card card -rotate-1">
+              <div className="card-label">Assigned issues</div>
+              <p className="landing-spotlight-card-desc">
+                See all Linear issues assigned to you — filtered to your user — with
+                identifier, title, workflow state, and priority. Scope by team ID or
+                pull everything in at once.
+              </p>
+              <div className="landing-spotlight-mock" aria-hidden="true">
+                <div className="landing-linear-issue-list">
+                  <div className="landing-linear-issue">
+                    <span className="landing-linear-issue-id">ENG-482</span>
+                    <span className="landing-linear-issue-title">Fix auth token refresh</span>
+                    <span className="landing-linear-state-pill landing-linear-state-pill-progress">In Progress</span>
+                  </div>
+                  <div className="landing-linear-issue">
+                    <span className="landing-linear-issue-id">ENG-475</span>
+                    <span className="landing-linear-issue-title">Add OpenTelemetry spans</span>
+                    <span className="landing-linear-state-pill landing-linear-state-pill-review">In Review</span>
+                  </div>
+                  <div className="landing-linear-issue">
+                    <span className="landing-linear-issue-id">ENG-461</span>
+                    <span className="landing-linear-issue-title">Migrate to Postgres 16</span>
+                    <span className="landing-linear-state-pill landing-linear-state-pill-todo">Todo</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* ── Block 3: Cycle progress ── */}
+            <div className="landing-spotlight-card card rotate-1">
+              <div className="card-label">Active cycle</div>
+              <p className="landing-spotlight-card-desc">
+                The current cycle&apos;s progress lives at the top of the Linear tab —
+                done, in-progress, and todo counts with a burndown bar so you know
+                exactly where the sprint stands.
+              </p>
+              <div className="landing-spotlight-mock" aria-hidden="true">
+                <div className="landing-linear-cycle">
+                  <div className="landing-linear-cycle-header">
+                    <span className="landing-linear-cycle-label">Cycle 7</span>
+                    <span className="landing-linear-cycle-days">DAY 4 / 14</span>
+                  </div>
+                  <div className="landing-linear-cycle-bar">
+                    <div
+                      className="landing-linear-cycle-fill landing-linear-cycle-fill-anim"
+                      style={{ width: "57%" }}
+                    />
+                  </div>
+                  <div className="landing-linear-cycle-counts">
+                    <span className="landing-linear-cycle-done">DONE <strong>8</strong></span>
+                    <span className="landing-linear-cycle-inprog">IN-PROG <strong>3</strong></span>
+                    <span className="landing-linear-cycle-todo">TODO <strong>5</strong></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
       {/* ── Feature strip ── */}
       <section className="landing-features">
         <div className="landing-features-inner">
@@ -427,12 +641,12 @@ export function LandingPage({ onSignIn }: Props): JSX.Element {
               View on GitHub
             </a>
             <a
-              href="https://www.linkedin.com/in/bokka-sairam/"
+              href="https://sairambokka.github.io"
               className="btn landing-footer-link"
               target="_blank"
               rel="noopener noreferrer"
             >
-              Connect on LinkedIn
+              Visit my site
             </a>
             <a
               href="https://buymeacoffee.com/sairambokka"
