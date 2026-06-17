@@ -6,7 +6,6 @@ import {
   type PRSummary,
 } from "./lib/github";
 import {
-  POLL_HIDDEN_MS,
   POLL_INSIGHTS_MS,
   POLL_LINEAR_MS,
 } from "./lib/constants";
@@ -25,7 +24,6 @@ import { ensureNotifyPermission, notify } from "./lib/notify";
 import { useRoute } from "./lib/router";
 import { handleCallback } from "./lib/auth";
 import { useIsVisible } from "./lib/useVisibility";
-import { InboxPanel } from "./components/InboxPanel";
 import { CheatsheetOverlay } from "./components/CheatsheetOverlay";
 import { InsightsPanel } from "./components/InsightsPanel";
 import { LinearPanel } from "./components/LinearPanel";
@@ -157,7 +155,6 @@ export default function App() {
     seenRef.current = seen;
   }, [seen]);
 
-  const activityIntervalMs = isVisible ? settings.intervalSec * 1000 : POLL_HIDDEN_MS;
   const configured = Boolean(settings.token && settings.owner && settings.repo);
 
   const { data, error, isFetching, dataUpdatedAt, refetch } = useQuery({
@@ -463,13 +460,6 @@ export default function App() {
               PRS <span className="tab-count">{tabPrsCount || ""}</span>
             </a>
             <a
-              href="#/inbox"
-              className={`tab${route === "inbox" ? " tab-nav-active" : ""}`}
-              aria-current={route === "inbox" ? "page" : undefined}
-            >
-              INBOX
-            </a>
-            <a
               href="#/insights"
               className={`tab${route === "insights" ? " tab-nav-active" : ""}`}
               aria-current={route === "insights" ? "page" : undefined}
@@ -634,19 +624,6 @@ export default function App() {
                 </div>
               )}
             </>
-          )}
-        </main>
-      )}
-      {route === "inbox" && (
-        <main className="main">
-          {data?.viewer && (
-            <InboxPanel
-              token={settings.token}
-              owner={settings.owner}
-              repo={settings.repo}
-              viewerLogin={data.viewer.login}
-              intervalMs={activityIntervalMs}
-            />
           )}
         </main>
       )}

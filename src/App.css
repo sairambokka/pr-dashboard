@@ -5,7 +5,7 @@
  * win over Tailwind v4 Preflight, which resets display/margins on header/nav.
  * Sections: Shell · Topbar · Buttons · Tabs · PR List · Summary Bar ·
  *           Error/Banner · Cards · Charts · Contrib · Linear · Modal ·
- *           Settings · Inbox · Keyframes · Responsive
+ *           Settings · Keyframes · Responsive
  * ───────────────────────────────────────────────────────────────────────── */
 
 /* ── App shell ────────────────────────────────────────────────────────── */
@@ -1712,62 +1712,6 @@ img.avatar {
   box-shadow: var(--shadow-neo-sm);
 }
 
-/* ── Inbox ────────────────────────────────────────────────────────────── */
-
-.inbox-layout {
-  display: flex;
-  flex-direction: column;
-  gap: 32px;
-}
-
-.inbox-section {
-  border: 3px solid var(--color-neo-ink);
-  background: var(--color-neo-white);
-  box-shadow: var(--shadow-neo-md);
-}
-
-.inbox-section-title {
-  font-size: 11px;
-  font-weight: 900;
-  color: var(--color-neo-ink);
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  padding: 10px 16px;
-  background: var(--color-neo-secondary);
-  border-bottom: 3px solid var(--color-neo-ink);
-  margin: 0;
-  transform: none; /* Titles in inbox stay straight for scannability */
-}
-
-.inbox-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 16px;
-  padding: 14px 16px;
-  border-bottom: 2px solid var(--color-neo-ink);
-  background: var(--color-neo-white);
-  transition: all 200ms;
-  animation: rowIn 320ms cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
-}
-
-.inbox-row:last-child {
-  border-bottom: none;
-}
-
-.inbox-row:hover {
-  background: var(--color-neo-bg);
-  transform: translateY(-1px);
-  box-shadow: var(--shadow-neo-sm);
-}
-
-.inbox-meta {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-left: auto;
-  flex-shrink: 0;
-}
-
 /* ── Thread rows ──────────────────────────────────────────────────────── */
 
 .threads-list {
@@ -2009,16 +1953,6 @@ img.avatar {
   /* Section title rotation removed on tiny screens for readability */
   .section-title {
     transform: none;
-  }
-
-  /* inbox stacks cleanly */
-  .inbox-row {
-    flex-direction: column;
-    gap: 10px;
-  }
-
-  .inbox-meta {
-    margin-left: 0;
   }
 
   /* Thread rows */
