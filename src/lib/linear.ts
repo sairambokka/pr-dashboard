@@ -62,23 +62,6 @@ query ActiveCycle($teamId: String!) {
   }
 }`;
 
-const CYCLE_ISSUES_QUERY = `
-query CycleIssues($cycleId: String!) {
-  issues(
-    filter: {
-      assignee: { isMe: { eq: true } }
-      cycle: { id: { eq: $cycleId } }
-    }
-    first: 100
-  ) {
-    nodes {
-      id identifier title url priority updatedAt
-      state { id name type color }
-      cycle { id number }
-    }
-  }
-}`;
-
 const OPEN_ISSUES_QUERY = `
 query OpenIssues {
   issues(
@@ -145,18 +128,6 @@ export async function fetchLinearActiveCycle(
     { teamId },
   );
   return data.team?.activeCycle ?? null;
-}
-
-export async function fetchLinearCycleIssues(
-  apiKey: string,
-  cycleId: string,
-): Promise<LinearIssue[]> {
-  const data = await linearGql<{ issues: { nodes: LinearIssue[] } }>(
-    apiKey,
-    CYCLE_ISSUES_QUERY,
-    { cycleId },
-  );
-  return data.issues.nodes;
 }
 
 export async function fetchLinearOpenIssues(apiKey: string): Promise<LinearIssue[]> {

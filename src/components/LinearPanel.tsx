@@ -1,10 +1,9 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { PRSummary } from "../lib/github";
 import {
   fetchLinearViewer,
   fetchLinearActiveCycle,
-  fetchLinearCycleIssues,
   fetchLinearOpenIssues,
 } from "../lib/linear";
 import type { LinearWorkflowState, LinearIssue } from "../lib/linear";
@@ -15,7 +14,6 @@ interface Props {
   authoredPRs: PRSummary[];
   intervalMs: number;
 }
-
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
@@ -76,7 +74,31 @@ function prStateLabel(pr: PRSummary): string {
   return "OPEN";
 }
 
+function buildMapping(issues: LinearIssue[], authoredPRs: PRSummary[]) {
+  const issueByIdentifier = new Map<string, LinearIssue>();
+  for (const issue of issues) {
+    issueByIdentifier.set(issue.identifier, issue);
+  }
+  const prByIdentifier = new Map<string, PRSummary>();
+  for (const pr of authoredPRs) {
+    const matches = pr.title.match(/[A-Z]+-\d+/g);
+    if (matches) {
+      for (const id of matches) {
+        prByIdentifier.set(id, pr);
+      }
+    }
+  }
+  const identifiers = new Set([...issueByIdentifier.keys(), ...prByIdentifier.keys()]);
+  return Array.from(identifiers).map((id) => ({
+    identifier: id,
+    issue: issueByIdentifier.get(id),
+    pr: prByIdentifier.get(id),
+  }));
+}
+
 export function LinearPanel({ apiKey, teamId, authoredPRs, intervalMs }: Props) {
+  const [scope, setScope] = useState<"all" | "cycle">("all");
+
   const viewerQuery = useQuery({
     queryKey: ["linearViewer"],
     queryFn: () => fetchLinearViewer(apiKey),
@@ -93,37 +115,32 @@ export function LinearPanel({ apiKey, teamId, authoredPRs, intervalMs }: Props) 
     enabled: Boolean(apiKey && resolvedTeamId),
   });
 
+  // Single source of truth: always fetch all open assigned issues.
+  // cycle.id on each issue enables client-side cycle filtering below.
   const issuesQuery = useQuery({
-    queryKey: ["linearIssues", cycleQuery.data?.id],
-    queryFn: () => {
-      if (cycleQuery.data?.id) return fetchLinearCycleIssues(apiKey, cycleQuery.data.id);
-      return fetchLinearOpenIssues(apiKey);
-    },
+    queryKey: ["linearIssues"],
+    queryFn: () => fetchLinearOpenIssues(apiKey),
     refetchInterval: intervalMs,
-    enabled: Boolean(apiKey) && !cycleQuery.isFetching,
+    enabled: Boolean(apiKey),
   });
 
-  const mapping = useMemo(() => {
-    const issueByIdentifier = new Map<string, LinearIssue>();
-    for (const issue of issuesQuery.data ?? []) {
-      issueByIdentifier.set(issue.identifier, issue);
-    }
-    const prByIdentifier = new Map<string, PRSummary>();
-    for (const pr of authoredPRs) {
-      const matches = pr.title.match(/[A-Z]+-\d+/g);
-      if (matches) {
-        for (const id of matches) {
-          prByIdentifier.set(id, pr);
-        }
-      }
-    }
-    const identifiers = new Set([...issueByIdentifier.keys(), ...prByIdentifier.keys()]);
-    return Array.from(identifiers).map((id) => ({
-      identifier: id,
-      issue: issueByIdentifier.get(id),
-      pr: prByIdentifier.get(id),
-    }));
-  }, [issuesQuery.data, authoredPRs]);
+  const allIssues = issuesQuery.data ?? [];
+
+  // Derive cycle issues client-side — no separate server query needed.
+  const cycleIssues = useMemo(
+    () =>
+      cycleQuery.data
+        ? allIssues.filter((i) => i.cycle?.id === cycleQuery.data!.id)
+        : [],
+    [allIssues, cycleQuery.data],
+  );
+
+  const scopedIssues: LinearIssue[] = scope === "cycle" ? cycleIssues : allIssues;
+
+  const mapping = useMemo(
+    () => buildMapping(scopedIssues, authoredPRs),
+    [scopedIssues, authoredPRs],
+  );
 
   const linkedRows = mapping.filter((r) => r.issue && r.pr);
   const linearOnlyRows = mapping.filter((r) => r.issue && !r.pr);
@@ -137,16 +154,17 @@ export function LinearPanel({ apiKey, teamId, authoredPRs, intervalMs }: Props) 
     });
   }, [linkedRows]);
 
+  // cycleStats derived from cycleIssues (not scopedIssues) so the cycle bar
+  // always reflects the full cycle, regardless of current scope view.
   const cycleStats = useMemo(() => {
-    const issues = issuesQuery.data ?? [];
     let done = 0, inProg = 0, todo = 0;
-    for (const i of issues) {
+    for (const i of cycleIssues) {
       if (i.state.type === "completed") done++;
       else if (i.state.type === "started") inProg++;
       else if (i.state.type === "backlog" || i.state.type === "unstarted") todo++;
     }
-    return { done, inProg, todo, scope: issues.length };
-  }, [issuesQuery.data]);
+    return { done, inProg, todo, scope: cycleIssues.length };
+  }, [cycleIssues]);
 
   if (viewerQuery.isError) {
     return (
@@ -164,11 +182,33 @@ export function LinearPanel({ apiKey, teamId, authoredPRs, intervalMs }: Props) 
     );
   }
 
-  const noCycle = cycleQuery.isSuccess && cycleQuery.data === null;
+  const hasCycle = Boolean(cycleQuery.data);
 
   return (
     <div>
-      {cycleQuery.data && (() => {
+      {/* Scope toggle — mirrors PRs tab Authored/All-open pattern */}
+      <div className="scope-toggle">
+        <button
+          className="scope-btn"
+          aria-pressed={scope === "all"}
+          onClick={() => setScope("all")}
+        >
+          All issues
+          <span className="scope-count">{allIssues.length}</span>
+        </button>
+        <button
+          className="scope-btn"
+          aria-pressed={scope === "cycle"}
+          onClick={() => setScope("cycle")}
+          disabled={!hasCycle && !cycleQuery.isFetching}
+        >
+          Cycle
+          <span className="scope-count">{cycleIssues.length}</span>
+        </button>
+      </div>
+
+      {/* Cycle bar — only rendered in cycle scope */}
+      {scope === "cycle" && cycleQuery.data && (() => {
         const { day, total } = currentCycleDay(cycleQuery.data!.startsAt, cycleQuery.data!.endsAt);
         return (
           <div className="cycle-bar">
@@ -212,9 +252,9 @@ export function LinearPanel({ apiKey, teamId, authoredPRs, intervalMs }: Props) 
         );
       })()}
 
-      {noCycle && (
+      {scope === "cycle" && cycleQuery.isSuccess && !cycleQuery.data && (
         <div className="banner banner-info">
-          Showing all open issues (no active cycle)
+          No active cycle for this team.
         </div>
       )}
 
@@ -223,7 +263,11 @@ export function LinearPanel({ apiKey, teamId, authoredPRs, intervalMs }: Props) 
       )}
 
       {issuesQuery.isSuccess && sortedLinked.length === 0 && linearOnlyRows.length === 0 && (
-        <div className="pr-empty">No assigned tickets.</div>
+        <div className="pr-empty">
+          {scope === "cycle"
+            ? "No issues assigned to you in this cycle."
+            : "No assigned tickets."}
+        </div>
       )}
 
       {(sortedLinked.length > 0 || linearOnlyRows.length > 0) && (

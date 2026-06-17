@@ -3324,6 +3324,49 @@ img.avatar {
   padding: 1px 5px;
 }
 
+/* ── Ticket↔PR table (.landing-linear-prtable) ──────────────────────────── */
+
+.landing-linear-prtable {
+  border: 2px solid var(--color-neo-ink);
+  background: var(--color-neo-bg);
+}
+
+.landing-linear-prrow {
+  display: grid;
+  grid-template-columns: 64px 1fr auto 16px 52px auto;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  border-bottom: 2px solid var(--color-neo-ink);
+  background: var(--color-neo-white);
+  font-size: 12px;
+}
+
+.landing-linear-prrow:last-child {
+  border-bottom: none;
+}
+
+.landing-linear-prrow-head {
+  background: var(--color-neo-secondary);
+}
+
+.landing-linear-col {
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-neo-ink);
+}
+
+.landing-linear-prstate {
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-neo-ink);
+  white-space: nowrap;
+}
+
 /* ── Assigned issues list (.landing-linear-issue-*) ──────────────────────── */
 
 .landing-linear-issue-list {
