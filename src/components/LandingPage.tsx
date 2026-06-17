@@ -493,47 +493,48 @@ export function LandingPage({ onSignIn }: Props): JSX.Element {
           </div>
 
           <p className="landing-linear-lead">
-            The PR and the ticket it closes, side by side. Linear status, priority, and cycle
-            — surfaced on the dashboard by matching the issue ID in your PR title. No tab to
-            Linear, no copy-paste. Paste your Linear API key in Settings once; everything
-            else is automatic.
+            The Linear tab pairs each of your assigned tickets with the PR that closes it —
+            side by side, matched automatically by finding the issue ID (e.g. D-2499) in
+            your PR title. Ticket status + PR state together, active cycle progress at the
+            top. Paste your Linear API key in Settings once; everything else is automatic.
           </p>
 
           <div className="landing-linear-blocks">
 
-            {/* ── Block 1: PR ↔ ticket link ── */}
+            {/* ── Block 1: Ticket ↔ PR table ── */}
             <div className="landing-spotlight-card card rotate-1">
-              <div className="card-label">PR linked to ticket</div>
+              <div className="card-label">Ticket paired with PR</div>
               <p className="landing-spotlight-card-desc">
-                A PR titled &ldquo;ENG-482 Fix auth token refresh&rdquo; automatically links to
-                issue ENG-482. The ticket&apos;s state and priority appear right on the PR row
-                — no manual linking, no extra clicks.
+                The Linear tab shows a table: your assigned tickets on the left, the
+                PR that closes each one on the right. Matching is automatic — it finds
+                the Linear ID (e.g. D-2499) in your PR title and links them up. Ticket
+                status and PR state, together, zero tab-switching required.
               </p>
               <div className="landing-spotlight-mock" aria-hidden="true">
-                <div className="landing-mock-prlist">
-                  <div className="landing-mock-pr-row landing-mock-pr-unread">
-                    <span className="landing-mock-pr-num">482</span>
-                    <span className="landing-mock-ci landing-mock-ci-green">●</span>
-                    <span className="landing-mock-pr-title">ENG-482 Fix auth token refresh</span>
+                <div className="landing-linear-issue-list">
+                  <div className="landing-linear-issue">
+                    <span className="landing-linear-issue-id">D-2499</span>
+                    <span className="landing-linear-issue-title">Fix auth token refresh</span>
+                    <span className="landing-linear-state-pill landing-linear-state-pill-progress">In Progress</span>
+                    <span className="t-dim" style={{ margin: "0 4px" }}>→</span>
+                    <span className="landing-mock-pr-num">#2359</span>
                     <span className="badge badge-approved">Approved</span>
-                    <span className="landing-mock-age">2d</span>
-                    <span className="bubble">3</span>
                   </div>
-                  <div className="landing-linear-chip-row">
-                    <span className="landing-linear-chip">
-                      <span className="landing-linear-chip-id">ENG-482</span>
-                      <span className="landing-linear-state-dot landing-linear-state-progress" />
-                      <span className="landing-linear-chip-state">In Progress</span>
-                      <span className="landing-linear-chip-priority">P1</span>
-                    </span>
-                  </div>
-                  <div className="landing-mock-pr-row">
-                    <span className="landing-mock-pr-num">479</span>
-                    <span className="landing-mock-ci landing-mock-ci-red">●</span>
-                    <span className="landing-mock-pr-title">Add rate limiting middleware</span>
+                  <div className="landing-linear-issue">
+                    <span className="landing-linear-issue-id">D-2487</span>
+                    <span className="landing-linear-issue-title">Add rate limiting middleware</span>
+                    <span className="landing-linear-state-pill landing-linear-state-pill-review">In Review</span>
+                    <span className="t-dim" style={{ margin: "0 4px" }}>→</span>
+                    <span className="landing-mock-pr-num">#2341</span>
                     <span className="badge badge-changes">Changes</span>
-                    <span className="landing-mock-age">4d</span>
-                    <span className="landing-mock-no-badge t-dim">—</span>
+                  </div>
+                  <div className="landing-linear-issue">
+                    <span className="landing-linear-issue-id">D-2471</span>
+                    <span className="landing-linear-issue-title">Migrate to Postgres 16</span>
+                    <span className="landing-linear-state-pill landing-linear-state-pill-todo">Todo</span>
+                    <span className="t-dim" style={{ margin: "0 4px" }}>→</span>
+                    <span className="landing-mock-pr-num">#2318</span>
+                    <span className="badge">Review</span>
                   </div>
                 </div>
               </div>
@@ -550,17 +551,17 @@ export function LandingPage({ onSignIn }: Props): JSX.Element {
               <div className="landing-spotlight-mock" aria-hidden="true">
                 <div className="landing-linear-issue-list">
                   <div className="landing-linear-issue">
-                    <span className="landing-linear-issue-id">ENG-482</span>
+                    <span className="landing-linear-issue-id">D-2499</span>
                     <span className="landing-linear-issue-title">Fix auth token refresh</span>
                     <span className="landing-linear-state-pill landing-linear-state-pill-progress">In Progress</span>
                   </div>
                   <div className="landing-linear-issue">
-                    <span className="landing-linear-issue-id">ENG-475</span>
-                    <span className="landing-linear-issue-title">Add OpenTelemetry spans</span>
+                    <span className="landing-linear-issue-id">D-2487</span>
+                    <span className="landing-linear-issue-title">Add rate limiting middleware</span>
                     <span className="landing-linear-state-pill landing-linear-state-pill-review">In Review</span>
                   </div>
                   <div className="landing-linear-issue">
-                    <span className="landing-linear-issue-id">ENG-461</span>
+                    <span className="landing-linear-issue-id">D-2471</span>
                     <span className="landing-linear-issue-title">Migrate to Postgres 16</span>
                     <span className="landing-linear-state-pill landing-linear-state-pill-todo">Todo</span>
                   </div>

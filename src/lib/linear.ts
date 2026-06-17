@@ -54,11 +54,8 @@ query Viewer {
 
 const ACTIVE_CYCLE_QUERY = `
 query ActiveCycle($teamId: String!) {
-  cycles(
-    filter: { team: { id: { eq: $teamId } }, isActive: { eq: true } }
-    first: 1
-  ) {
-    nodes {
+  team(id: $teamId) {
+    activeCycle {
       id number name startsAt endsAt progress
       scopeHistory completedScopeHistory
     }
@@ -142,12 +139,12 @@ export async function fetchLinearActiveCycle(
   apiKey: string,
   teamId: string,
 ): Promise<LinearCycle | null> {
-  const data = await linearGql<{ cycles: { nodes: LinearCycle[] } }>(
+  const data = await linearGql<{ team: { activeCycle: LinearCycle | null } }>(
     apiKey,
     ACTIVE_CYCLE_QUERY,
     { teamId },
   );
-  return data.cycles.nodes[0] ?? null;
+  return data.team?.activeCycle ?? null;
 }
 
 export async function fetchLinearCycleIssues(
