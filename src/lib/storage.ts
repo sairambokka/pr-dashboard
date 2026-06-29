@@ -68,6 +68,23 @@ export function saveSeen(seen: SeenMap): void {
   localStorage.setItem(SEEN_KEY, JSON.stringify(seen));
 }
 
+const SEEN_LINEAR_KEY = "pr-dashboard.seenLinear";
+
+export function loadSeenLinear(): Set<string> {
+  try {
+    const raw = localStorage.getItem(SEEN_LINEAR_KEY);
+    if (!raw) return new Set();
+    const parsed = JSON.parse(raw) as string[];
+    return new Set(parsed);
+  } catch {
+    return new Set();
+  }
+}
+
+export function saveSeenLinear(ids: Set<string>): void {
+  localStorage.setItem(SEEN_LINEAR_KEY, JSON.stringify([...ids]));
+}
+
 export function loadLastRepo(): { owner: string; repo: string } | null {
   return loadSettings().lastRepo ?? null;
 }

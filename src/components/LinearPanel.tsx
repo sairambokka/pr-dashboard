@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { PRSummary } from "../lib/github";
 import {
@@ -7,6 +7,8 @@ import {
   fetchLinearOpenIssues,
 } from "../lib/linear";
 import type { LinearWorkflowState, LinearIssue } from "../lib/linear";
+import { notify } from "../lib/notify";
+import { loadSeenLinear, saveSeenLinear } from "../lib/storage";
 
 interface Props {
   apiKey: string;
@@ -125,6 +127,45 @@ export function LinearPanel({ apiKey, teamId, authoredPRs, intervalMs }: Props) 
   });
 
   const allIssues = issuesQuery.data ?? [];
+
+  // Notify on newly-assigned tickets. Diff fetched issue IDs against a
+  // persisted seen-set. The first successful fetch only seeds the set (no
+  // notifications), mirroring the PR-tab lastStats-ref pattern, so opening
+  // the app doesn't fire a burst for every already-assigned ticket.
+  const seededRef = useRef(false);
+  useEffect(() => {
+    if (!issuesQuery.data) return;
+
+    const seen = loadSeenLinear();
+    const tabFocused = typeof document !== "undefined" && document.hasFocus();
+
+    if (!seededRef.current) {
+      // First fetch this session: seed without notifying.
+      seededRef.current = true;
+      let changed = false;
+      for (const issue of issuesQuery.data) {
+        if (!seen.has(issue.id)) {
+          seen.add(issue.id);
+          changed = true;
+        }
+      }
+      if (changed) saveSeenLinear(seen);
+      return;
+    }
+
+    let changed = false;
+    for (const issue of issuesQuery.data) {
+      if (seen.has(issue.id)) continue;
+      seen.add(issue.id);
+      changed = true;
+      // Suppress only when the Linear tab is visible & focused (panel is
+      // mounted exclusively on the Linear tab).
+      if (!tabFocused) {
+        notify(`New ticket: ${issue.identifier}`, issue.title, issue.url);
+      }
+    }
+    if (changed) saveSeenLinear(seen);
+  }, [issuesQuery.data, issuesQuery.dataUpdatedAt]);
 
   // Derive cycle issues client-side — no separate server query needed.
   const cycleIssues = useMemo(
