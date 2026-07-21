@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import type { JSX } from "react";
+import { ThemeToggle } from "./ThemeToggle";
 
 interface Props {
   onSignIn: () => void;
@@ -148,6 +149,7 @@ export function LandingPage({ onSignIn }: Props): JSX.Element {
 
   return (
     <div className="landing-page">
+      <ThemeToggle className="landing-theme-toggle" />
       {/* ── Top bar ── */}
       <header className="topbar">
         <div className="topbar-row">

@@ -47,6 +47,45 @@
   --blue: var(--color-neo-muted);
 }
 
+/* ─────────────────────────────────────────────────────────────────────────
+ * Dark mode — ink-inverted charcoal. Set via data-theme="dark" on <html>
+ * (see src/lib/theme.ts). Redefines both the @theme color tokens and the
+ * alias layer above so components, charts, and legacy vars all follow with
+ * no per-component edits. Offset shadows flip to cream so they read on dark.
+ * ───────────────────────────────────────────────────────────────────────── */
+:root[data-theme="dark"] {
+  --color-neo-bg: #1a1a1a; /* charcoal canvas */
+  --color-neo-ink: #f5f0e0; /* cream ink — borders, text, shadows */
+  --color-neo-accent: #ff6b6b;
+  --color-neo-secondary: #ffd93d;
+  --color-neo-muted: #c4b5fd;
+  --color-neo-white: #262626; /* raised panels */
+  --color-neo-green: #00c853;
+  --color-neo-red: #ff1744;
+
+  --shadow-neo-sm: 4px 4px 0px 0px #f5f0e0;
+  --shadow-neo-md: 8px 8px 0px 0px #f5f0e0;
+  --shadow-neo-lg: 12px 12px 0px 0px #f5f0e0;
+
+  /* Alias remap — mirrors the :root block onto dark values. */
+  --bg: var(--color-neo-bg);
+  --panel: var(--color-neo-white);
+  --panel-2: var(--color-neo-bg);
+  --border: var(--color-neo-ink);
+  --border-2: var(--color-neo-ink);
+  --border-muted: rgba(245, 240, 224, 0.15);
+  --muted: #f5f0e0;
+  --dim: #f5f0e0;
+  --body: #f5f0e0;
+  --text: #f5f0e0;
+  --accent: var(--color-neo-accent);
+  --accent-dim: var(--color-neo-accent);
+  --green: var(--color-neo-green);
+  --red: var(--color-neo-red);
+  --yellow: var(--color-neo-secondary);
+  --blue: var(--color-neo-muted);
+}
+
 *,
 *::before,
 *::after {

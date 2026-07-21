@@ -9,6 +9,7 @@ import { SettingsModal } from "./components/SettingsModal";
 import { LandingPage } from "./components/LandingPage";
 import { RepoHome } from "./components/RepoHome";
 import { RepoWorkspace } from "./components/RepoWorkspace";
+import { ThemeToggle } from "./components/ThemeToggle";
 import "./App.css";
 
 const REPO_HOME_POLL_MS = 60_000;
@@ -115,6 +116,7 @@ export default function App() {
             </div>
             {viewerLogin && <span className="user-tag">{viewerLogin}</span>}
             <div className="topbar-actions">
+              <ThemeToggle />
               <button className="btn btn-ghost" onClick={() => setShowSettings(true)}>
                 Settings
               </button>

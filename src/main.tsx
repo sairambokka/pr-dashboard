@@ -3,6 +3,10 @@ import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import "./index.css";
 import App from "./App";
+import { applyTheme, resolveInitial } from "./lib/theme";
+
+// Safety net — idempotent with the inline head script in index.html.
+applyTheme(resolveInitial());
 
 const queryClient = new QueryClient({
   defaultOptions: {

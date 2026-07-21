@@ -4,8 +4,28 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="color-scheme" content="light" />
+    <meta name="color-scheme" content="light dark" />
     <meta name="theme-color" content="#FFFDF5" />
+    <script>
+      // Zero-flash theme: apply before first paint. Stored choice wins, else OS.
+      (function () {
+        try {
+          var s = localStorage.getItem("pr-dashboard.theme");
+          var t =
+            s === "light" || s === "dark"
+              ? s
+              : matchMedia("(prefers-color-scheme: dark)").matches
+              ? "dark"
+              : "light";
+          var r = document.documentElement;
+          r.dataset.theme = t;
+          r.style.colorScheme = t;
+          document
+            .querySelector('meta[name="theme-color"]')
+            .setAttribute("content", t === "dark" ? "#1A1A1A" : "#FFFDF5");
+        } catch (e) {}
+      })();
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -15,6 +35,9 @@
     <title>PR Dashboard</title>
     <style>
       html, body { background: #FFFDF5; color: #000000; margin: 0; }
+      html[data-theme="dark"], html[data-theme="dark"] body {
+        background: #1A1A1A; color: #F5F0E0;
+      }
     </style>
   </head>
   <body>
