@@ -27,7 +27,7 @@ export default function App() {
       .then((token) => {
         if (!token) return;
         setSettings((prev) => {
-          const next = { ...prev, token };
+          const next: Settings = { ...prev, token, authMethod: "oauth" };
           saveSettings(next);
           return next;
         });
@@ -76,7 +76,7 @@ export default function App() {
     return (
       <>
         {sharedModals}
-        <LandingPage onSignIn={beginLogin} />
+        <LandingPage onSignIn={beginLogin} onUseToken={() => setShowSettings(true)} />
       </>
     );
   }

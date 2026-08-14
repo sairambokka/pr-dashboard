@@ -1,5 +1,7 @@
 export interface Settings {
   token: string;
+  /** How `token` was obtained. Absent on settings saved before PAT support. */
+  authMethod?: "oauth" | "pat";
   owner: string;
   repo: string;
   intervalSec: number;

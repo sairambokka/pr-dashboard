@@ -4,6 +4,8 @@ import { ThemeToggle } from "./ThemeToggle";
 
 interface Props {
   onSignIn: () => void;
+  /** Opens Settings, where a personal access token can be pasted instead. */
+  onUseToken: () => void;
 }
 
 const FEATURES: { label: string; body: string; rotate: string }[] = [
@@ -118,7 +120,7 @@ const TICKER_TOKENS = [
 
 // ── Component ─────────────────────────────────────────────────────────────
 
-export function LandingPage({ onSignIn }: Props): JSX.Element {
+export function LandingPage({ onSignIn, onUseToken }: Props): JSX.Element {
   // Live feed state — newKey identifies which row just entered (drives CSS animation)
   const [feedRows, setFeedRows] = useState<FakePr[]>(INITIAL_ROWS);
   const [newKey, setNewKey]     = useState<number | null>(null);
@@ -193,6 +195,13 @@ export function LandingPage({ onSignIn }: Props): JSX.Element {
               onClick={onSignIn}
             >
               Sign in with GitHub
+            </button>
+            <button
+              type="button"
+              className="btn btn-ghost landing-anim-trust"
+              onClick={onUseToken}
+            >
+              or use a personal access token
             </button>
             <p className="landing-hero-trust landing-anim-trust">
               1 auth · every repo · ~0 config · token never leaves your browser
@@ -642,6 +651,9 @@ export function LandingPage({ onSignIn }: Props): JSX.Element {
             onClick={onSignIn}
           >
             Sign in with GitHub
+          </button>
+          <button type="button" className="btn btn-ghost" onClick={onUseToken}>
+            or use a personal access token
           </button>
           <div className="landing-footer-links">
             <a

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 
 import type { Settings } from "../lib/storage";
 import { authConfigured, beginLogin } from "../lib/auth";
+import { fetchViewerLogin } from "../lib/github";
 
 interface Props {
   settings: Settings;
@@ -14,6 +15,10 @@ interface Props {
 export function SettingsModal({ settings, viewerLogin, authError, onSave, onClose }: Props) {
   const [draft, setDraft] = useState<Settings>(settings);
   const [showLinearKey, setShowLinearKey] = useState(false);
+  const [pat, setPat] = useState("");
+  const [showPat, setShowPat] = useState(false);
+  const [patVerifying, setPatVerifying] = useState(false);
+  const [patError, setPatError] = useState<string | null>(null);
 
   const signedIn = Boolean(draft.token);
 
@@ -26,7 +31,27 @@ export function SettingsModal({ settings, viewerLogin, authError, onSave, onClos
   }, [onClose]);
 
   function signOut() {
-    setDraft((d) => ({ ...d, token: "" }));
+    setDraft((d) => ({ ...d, token: "", authMethod: undefined }));
+  }
+
+  /**
+   * Verify a pasted personal access token against the GitHub API before storing
+   * it — a typo'd token would otherwise fail silently in every downstream view.
+   * Saves (and closes) only on success.
+   */
+  async function saveToken() {
+    const trimmed = pat.trim();
+    if (!trimmed) return;
+    setPatVerifying(true);
+    setPatError(null);
+    try {
+      await fetchViewerLogin(trimmed);
+      onSave({ ...draft, token: trimmed, authMethod: "pat" });
+    } catch (e: unknown) {
+      setPatError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setPatVerifying(false);
+    }
   }
 
   return (
@@ -53,6 +78,7 @@ export function SettingsModal({ settings, viewerLogin, authError, onSave, onClos
                 <>
                   <span className="test-result ok">
                     ✓ Signed in{viewerLogin ? ` as @${viewerLogin}` : ""}
+                    {draft.authMethod === "pat" ? " (token)" : ""}
                   </span>
                   <button type="button" className="btn btn-ghost" onClick={signOut}>
                     Sign out
@@ -69,16 +95,60 @@ export function SettingsModal({ settings, viewerLogin, authError, onSave, onClos
                 </button>
               )}
             </div>
-            {!authConfigured() && (
+            {!authConfigured() && !signedIn && (
               <small className="test-result err">
                 OAuth not configured — set <code>VITE_GH_CLIENT_ID</code> and{" "}
-                <code>VITE_AUTH_WORKER_URL</code> at build time.
+                <code>VITE_AUTH_WORKER_URL</code> at build time, or use a token below.
               </small>
             )}
             {authError && <small className="test-result err">✗ {authError}</small>}
+            {!signedIn && (
+              <label>
+                — or use a personal access token —
+                <div className="pat-row">
+                  <input
+                    type={showPat ? "text" : "password"}
+                    value={pat}
+                    onChange={(e) => setPat(e.target.value)}
+                    autoComplete="off"
+                    placeholder="ghp_... or github_pat_..."
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        void saveToken();
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-ghost pat-toggle"
+                    onClick={() => setShowPat((v) => !v)}
+                    aria-label={showPat ? "Hide token" : "Show token"}
+                  >
+                    {showPat ? "Hide" : "Show"}
+                  </button>
+                </div>
+                <div className="auth-row">
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={() => void saveToken()}
+                    disabled={patVerifying || !pat.trim()}
+                  >
+                    {patVerifying ? "Verifying…" : "Use token"}
+                  </button>
+                </div>
+                {patError && <small className="test-result err">✗ {patError}</small>}
+                <small>
+                  Create one at https://github.com/settings/tokens with the{" "}
+                  <code>repo</code> and <code>read:user</code> scopes. Verified before it is
+                  saved.
+                </small>
+              </label>
+            )}
             <small>
-              Authorizes read access to your pull requests via GitHub OAuth. The access token
-              is stored only in your browser localStorage.
+              Authorizes read access to your pull requests. The access token is stored only in
+              your browser localStorage.
             </small>
           </section>
 
